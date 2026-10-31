@@ -9,7 +9,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { initRun, addRound } from '../scripts/lib/rundir.mjs'
-import { r1 } from './helpers.mjs'
+import { r1, clone } from './helpers.mjs'
 
 const RELAY = fileURLToPath(new URL('../scripts/relay.mjs', import.meta.url))
 
@@ -103,7 +103,7 @@ test('refuses simple cross-site posts and bad bodies, writes nothing', async () 
   const wrongRound = await post(`/${token}/api/review`, JSON.stringify({ ...review, round: 2 }))
   assert.equal(wrongRound.status, 422)
   assert.ok(JSON.parse(wrongRound.body).errors.some(e => e.includes('round')))
-  assert.equal((await post(`/${token}/api/review`, 'x'.repeat(1_100_000))).status, 413)
+  assert.equal((await post(`/${token}/api/review`, 'x'.repeat(4_300_000))).status, 413)
   assert.equal((await post(`/wrongtoken/api/review`, JSON.stringify(review))).status, 404)
   assert.equal(existsSync(join(dir, 'review-1.json')), false)
   assert.equal(child.exitCode, null) // still serving
@@ -181,4 +181,60 @@ test('port busy exits with code 2', async () => {
   } finally {
     blocker.close()
   }
+})
+
+const PNG = Buffer.from([0x89, 0x50, 0x4e, 0x47])
+const upload = (id, body = PNG, type = 'image/png', t = token) => send('POST', `/${t}/api/capture/${id}`, { body, headers: { 'Content-Type': type } })
+
+test('capture upload writes the file and serves it back', async () => {
+  child = startRelay(); await child.ready
+  const res = await upload('r1-k1')
+  assert.equal(res.status, 200)
+  assert.deepEqual(JSON.parse(res.body), { file: 'captures/r1-k1.png' })
+  assert.deepEqual(await readFile(join(dir, 'captures', 'r1-k1.png')), PNG)
+  const back = await new Promise((resolve, reject) => {
+    request({ host: '127.0.0.1', port, path: `/${token}/captures/r1-k1.png`, headers: { Host: `127.0.0.1:${port}` } }, res => {
+      const chunks = []
+      res.on('data', c => chunks.push(c))
+      res.on('end', () => resolve({ status: res.statusCode, type: res.headers['content-type'], body: Buffer.concat(chunks) }))
+    }).on('error', reject).end()
+  })
+  assert.equal(back.status, 200)
+  assert.equal(back.type, 'image/png')
+  assert.deepEqual(back.body, PNG)
+  assert.equal((await get(`/${token}/captures/r1-k2.png`)).status, 404)
+  assert.equal((await get(`/${token}/captures/state.json`)).status, 404)
+})
+
+test('capture upload is refused', async () => {
+  child = startRelay(); await child.ready
+  assert.equal((await upload('r1-k1', PNG, 'image/png', 'wrongtoken')).status, 404)
+  assert.equal((await upload('r1-k1', PNG, 'text/plain')).status, 415)
+  assert.equal((await upload('r2-k1')).status, 422)
+  assert.equal((await upload('..%2Fx')).status, 404)
+  assert.equal((await upload('r1-k1', Buffer.alloc(8 * 1024 * 1024 + 1))).status, 413)
+  assert.equal(existsSync(join(dir, 'captures')), false)
+  await post(`/${token}/api/review`, JSON.stringify(review))
+  await child.done
+  child = startRelay(); await child.ready
+  assert.equal((await upload('r1-k1')).status, 409)
+})
+
+const withCapture = capture => ({ ...review, steps: review.steps.map((s, i) => i > 0 ? s : { ...s, comments: [...s.comments,
+  { id: 'r1-k9', text: 'Too much space.', anchor: { kind: 'zone', url: 'http://localhost:8000/clients', element: null, quote: null,
+    rect: { x: 0, y: 0, width: 10, height: 10 }, capture } }] }) })
+
+test('a review citing a missing capture is refused, an uploaded one accepted', async () => {
+  child = startRelay(); await child.ready
+  const missing = await post(`/${token}/api/review`, JSON.stringify(withCapture('captures/r1-k9.png')))
+  assert.equal(missing.status, 422)
+  assert.ok(JSON.parse(missing.body).errors.some(e => e.includes('capture')))
+  await upload('r1-k9')
+  assert.equal((await post(`/${token}/api/review`, JSON.stringify(withCapture('captures/r1-k9.png')))).status, 200)
+})
+
+test('a review up to 4 MiB is accepted', async () => {
+  child = startRelay(); await child.ready
+  const big = clone(review); big.steps[0].comments[0].text = 'x'.repeat(2 * 1024 * 1024)
+  assert.equal((await post(`/${token}/api/review`, JSON.stringify(big))).status, 200)
 })

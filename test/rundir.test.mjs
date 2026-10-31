@@ -1,6 +1,6 @@
 import { test, beforeEach } from 'node:test'
 import assert from 'node:assert/strict'
-import { mkdtemp, writeFile } from 'node:fs/promises'
+import { mkdtemp, writeFile, mkdir } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -81,4 +81,12 @@ test('restart keeps port and token, drops rounds', async () => {
   const again = await initRun(dir, { restart: true })
   assert.equal(again.state.round, 0); assert.equal(again.state.token, state.token); assert.equal(again.state.port, state.port)
   assert.equal(existsSync(join(dir, 'scenario-1.json')), false); assert.equal(existsSync(join(dir, 'review-1.json')), false)
+})
+
+test('restart removes captures', async () => {
+  await initRun(dir)
+  await mkdir(join(dir, 'captures'))
+  await writeFile(join(dir, 'captures', 'r1-k1.png'), 'png')
+  await initRun(dir, { restart: true })
+  assert.equal(existsSync(join(dir, 'captures')), false)
 })
