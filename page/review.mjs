@@ -5,8 +5,15 @@
 // A point already validated in an earlier round starts checked.
 const entryFor = step => ({
   checked: Object.fromEntries(step.points.map(p => [p.id, p.alreadyValidated === true])),
-  comments: []
+  comments: [],
+  logs: [],
+  requests: [],
+  dropped: { errors: 0, warnings: 0, requests: 0 }
 })
+
+const APP_KINDS = ['element', 'text', 'zone']
+const MAX_ENTRIES = 50
+const MAX_TEXT = 500
 
 export function initialState (round, steps) {
   const entries = {}
@@ -30,7 +37,10 @@ export function mergeState (saved, round, steps, extraSteps = []) {
     if (old) {
       const pointIds = step.points.map(p => p.id)
       for (const pid of pointIds) if (Object.hasOwn(old.checked ?? {}, pid)) entry.checked[pid] = Boolean(old.checked[pid])
-      entry.comments = (old.comments ?? []).filter(c => c.anchor?.kind === 'step' || (c.anchor?.kind === 'point' && pointIds.includes(c.anchor.id)))
+      entry.comments = (old.comments ?? []).filter(c => ['step', ...APP_KINDS].includes(c.anchor?.kind) || (c.anchor?.kind === 'point' && pointIds.includes(c.anchor.id)))
+      entry.logs = old.logs ?? []
+      entry.requests = old.requests ?? []
+      entry.dropped = { errors: 0, warnings: 0, requests: 0, ...old.dropped }
     }
     entries[id] = entry
   }
@@ -56,6 +66,88 @@ export function addComment (s, stepId, anchor, text) {
   const comment = { id: `r${s.round}-k${s.nextNo}`, text: clean, anchor }
   const next = { ...withEntry(s, stepId, e => ({ ...e, comments: [...e.comments, comment] })), nextNo: s.nextNo + 1 }
   return setDraft(next, draftKey(stepId, anchor), '')
+}
+
+export const nextCommentId = s => `r${s.round}-k${s.nextNo}`
+
+// A comment made on the app: the extension sends where and what; the page adds the step's console state.
+export function addAppComment (s, stepId, payload, text) {
+  const clean = String(text).trim()
+  if (!clean) return s
+  const entry = s.entries[stepId]
+  const anchor = {
+    kind: payload.kind,
+    url: payload.url,
+    element: payload.element ?? null,
+    quote: payload.quote ?? null,
+    rect: payload.rect,
+    capture: null,
+    context: { consoleErrors: entry.logs.filter(l => l.level === 'error').length, lastRequest: payload.lastRequest ?? null }
+  }
+  const comment = { id: nextCommentId(s), text: clean, anchor }
+  return { ...withEntry(s, stepId, e => ({ ...e, comments: [...e.comments, comment] })), nextNo: s.nextNo + 1 }
+}
+
+export const setCapture = (s, stepId, commentId, file) => withEntry(s, stepId, e => ({
+  ...e, comments: e.comments.map(c => c.id === commentId ? { ...c, anchor: { ...c.anchor, capture: file } } : c)
+}))
+
+// Console entries and failed requests of the app, kept per step and bounded per kind (errors, warnings,
+// requests), so a flood of warnings cannot hide an error. Past the cap they are only counted.
+const kindOf = (key, item) => key === 'requests' ? 'requests' : item.level === 'error' ? 'errors' : 'warnings'
+
+function addEntry (s, stepId, key, item) {
+  const kind = kindOf(key, item)
+  return withEntry(s, stepId, e => e[key].filter(x => kindOf(key, x) === kind).length >= MAX_ENTRIES
+    ? { ...e, dropped: { ...e.dropped, [kind]: e.dropped[kind] + 1 } }
+    : { ...e, [key]: [...e[key], item] })
+}
+
+export const addLog = (s, stepId, log) => addEntry(s, stepId, 'logs', { ...log, text: String(log.text).slice(0, MAX_TEXT) })
+
+export const addRequest = (s, stepId, request) => addEntry(s, stepId, 'requests', request)
+
+export function issues (entry) {
+  const errors = entry.logs.filter(l => l.level === 'error').length
+  return {
+    errors: errors + entry.dropped.errors,
+    warnings: entry.logs.length - errors + entry.dropped.warnings,
+    requests: entry.requests.length + entry.dropped.requests
+  }
+}
+
+export const appComments = entry => entry.comments.filter(c => APP_KINDS.includes(c.anchor?.kind))
+
+export const pinsFor = (s, stepId) => appComments(s.entries[stepId] ?? { comments: [] }).map((c, i) => ({
+  n: i + 1, url: c.anchor.url, selector: c.anchor.element?.selector ?? null, rect: c.anchor.rect
+}))
+
+// The fields to fill: a named account takes its value from credentials.json, which the scenario never holds.
+export function prefillFields (step, credentials) {
+  const fields = []
+  const unresolved = []
+  for (const entry of step.prefill ?? []) {
+    if ('value' in entry) { fields.push({ selector: entry.selector, value: entry.value }); continue }
+    const value = credentials.find(c => c.prerequisiteId === entry.credential)?.[entry.field]
+    if (typeof value === 'string') fields.push({ selector: entry.selector, value })
+    else unresolved.push(entry.selector)
+  }
+  return { fields, unresolved }
+}
+
+// The step the app reached, when the current step's next.detect matches its path and query.
+export function detectTarget (step, url) {
+  const { stepId, detect } = step?.next ?? {}
+  if (!stepId || typeof detect?.urlMatches !== 'string') return null
+  try {
+    const { pathname, search } = new URL(url)
+    return new RegExp(detect.urlMatches).test(pathname + search) ? stepId : null
+  } catch { return null }
+}
+
+export function goToStep (s, stepId) {
+  const i = s.order.indexOf(stepId)
+  return i === -1 ? s : { ...s, current: i }
 }
 
 export const removeComment = (s, stepId, commentId) =>
@@ -100,7 +192,7 @@ export function buildReview (s, now) {
     steps: s.order.map(stepId => {
       const e = s.entries[stepId]
       const points = Object.fromEntries(Object.keys(e.checked).map(id => [id, pointStatus(e, id)]))
-      return { stepId, status: stepStatus(e), points, comments: e.comments }
+      return { stepId, status: stepStatus(e), points, comments: e.comments, logs: e.logs ?? [], requests: e.requests ?? [] }
     })
   }
 }
