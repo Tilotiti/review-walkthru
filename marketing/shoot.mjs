@@ -1,6 +1,7 @@
 // Headless Chrome screenshots over the DevTools protocol (Node 22+ global WebSocket).
 //   node marketing/shoot.mjs <url> <out.png> <width> <height> [scale] [script.js]   (SCHEME=dark, MOBILE=1)
 // `script` is an expression evaluated after load; when it returns a promise, the capture waits for it.
+// `clip` is an expression for the {x, y, width, height} to keep, in CSS pixels; the whole viewport otherwise.
 import { spawn } from 'node:child_process'
 import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -10,7 +11,7 @@ import { pathToFileURL } from 'node:url'
 const CHROME = process.env.CHROME ?? '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms))
 
-export async function shoot ({ url, out, width, height, scale = 1, scheme = 'light', script = null, mobile = false }) {
+export async function shoot ({ url, out, width, height, scale = 1, scheme = 'light', script = null, clip = null, mobile = false }) {
   const port = 9300 + Math.floor(Math.random() * 600)
   const chrome = spawn(CHROME, ['--headless=new', `--remote-debugging-port=${port}`, `--user-data-dir=${mkdtempSync(join(tmpdir(), 'shoot-'))}`,
     '--hide-scrollbars', '--lang=en-US', '--accept-lang=en-US', '--no-first-run', 'about:blank'], { stdio: 'ignore' })
@@ -41,7 +42,8 @@ export async function shoot ({ url, out, width, height, scale = 1, scheme = 'lig
     }
     await send('Runtime.evaluate', { expression: 'document.fonts.ready', awaitPromise: true })
     await sleep(300)
-    const shot = await send('Page.captureScreenshot', { format: 'png', captureBeyondViewport: false })
+    const box = clip && (await send('Runtime.evaluate', { expression: clip, returnByValue: true })).result.result.value
+    const shot = await send('Page.captureScreenshot', { format: 'png', captureBeyondViewport: false, ...(box && { clip: { ...box, scale: 1 } }) })
     writeFileSync(out, Buffer.from(shot.result.data, 'base64'))
     ws.close()
     return out

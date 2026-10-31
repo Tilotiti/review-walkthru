@@ -3,23 +3,34 @@
 <head>
 <meta charset="utf-8">
 <link rel="stylesheet" href="compose.css">
-<style>.crop { width: 600px; height: 560px; overflow: hidden; margin-left: auto; } .crop img { width: 1460px; margin-left: -858px; margin-top: -46px; } .term { position: absolute; left: 0; top: 70px; width: 510px; font-size: 14px; } .note { position: absolute; left: 0; bottom: 24px; font-size: 13px; color: var(--muted); }</style>
+<style>
+  .shot { flex-direction: row; gap: 40px; padding: 40px 0 0 64px; }
+  .side { flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 32px; padding-bottom: 40px; }
+  .term { font-size: 14px; }
+  .note { font-size: 13px; color: var(--muted); margin-top: -20px; }
+  /* From the pinned filter in the app to the review's send button: x 590 to 1280, y 48 to 800 of the capture. */
+  .crop { width: 690px; height: 760px; overflow: hidden; border-right: 0; border-radius: 14px 0 0 0; }
+  .crop img { width: 1280px; margin: -48px 0 0 -590px; }
+</style>
 </head>
 <body>
 <div class="shot">
-  <h1>One click sends the whole review to Claude Code.</h1>
-  <div class="stage">
-    <div class="crop window"><img src="/img/hero.png" alt=""></div>
+  <div class="side">
+    <h1>One click sends the whole review to Claude Code.</h1>
     <div class="term">
       <div><span class="p">&gt;</span> /review-walkthru 128</div>
       <div><span class="ok">✓</span> Review ready: 4 steps, 9 points</div>
-      <div><span class="am">●</span> Review received: 1 comment, 1 point validated</div>
-      <div class="dim">  Status filter: "Archived clients should be</div>
-      <div class="dim">  hidden by default, with a toggle to show them."</div>
-      <div><span class="p">●</span> Fixing: the list now starts on Active.</div>
+      <div><span class="am">●</span> Review received: 1 comment, 1 point validated.</div>
+      <div class="dim">  On the app (#status), with a capture:</div>
+      <div class="dim">  "Archived clients should be hidden by default,</div>
+      <div class="dim">  with a toggle to show them."</div>
+      <div class="dim">  Console: 1 error, 1 failed request.</div>
+      <div><span class="p">●</span> Fixing: the list now starts on Active,</div>
+      <div class="dim">  and /clients/stats no longer returns 500.</div>
       <div class="dim">  Next round: 2 of 4 steps to recheck.</div>
     </div>
     <p class="note">Claude Code output, illustrative.</p>
   </div>
+  <div class="crop window"><img src="/img/app-comment.png" alt=""></div>
 </div>
 </body></html>
