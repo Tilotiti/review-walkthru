@@ -7,6 +7,6 @@
     "test": "node --test",
     "build:site": "node scripts/build-site.mjs",
     "assets": "node marketing/capture.mjs",
-    "pack:extension": "mkdir -p dist && rm -f dist/extension.zip && cd extension && zip -qrX ../dist/extension.zip . -x '.*'"
+    "pack:extension": "node scripts/pack-extension.mjs"
   }
 }

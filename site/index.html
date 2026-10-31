@@ -79,7 +79,7 @@
           </li>
           <li>
             <p class="pain">"Checking it all means endless back and forth."</p>
-            <p>Your app and the review sit side by side. Check each point, comment, and send everything back to Claude in one click.</p>
+            <p>Your app and the review sit side by side. Check each point, comment on the review or right on the app, and send everything back to Claude in one click.</p>
           </li>
         </ol>
         <figure class="window pains-visual"><img src="img/points.png" width="1040" height="800" alt="Two review points: Sorting, validated, with the author's decision; Status filter, with a doubt inferred from the diff and the reviewer's comment."></figure>
@@ -125,7 +125,7 @@
           </li>
           <li data-visual="send">
             <h3><span class="num">3</span>Send</h3>
-            <p>Check a point to validate it, or comment on it. One click sends the whole review to Claude Code, mid-round if you want.</p>
+            <p>Check a point to validate it, or comment on it. To point at the app itself, press ⌥⇧C, then click an element, select a text or frame an area: Claude gets a capture of it and the app's console errors. One click sends the whole review to Claude Code, mid-round if you want.</p>
           </li>
           <li data-visual="repeat">
             <h3><span class="num">4</span>Fix and repeat</h3>
@@ -194,7 +194,7 @@
         </div>
         <div class="card">
           <h3><span class="num">2</span>Add the Chrome extension</h3>
-          <p>It opens your app next to the review page, in split view. Chrome 155 or later.</p>
+          <p>The review runs in it: it opens your app next to the review page, in split view, and lets you comment right on the app. Chrome 155 or later.</p>
           <a class="btn secondary" href="https://chromewebstore.google.com/detail/kjigknfmabifbopeelbckkilheemoedh">Chrome Web Store, pending review</a>
         </div>
         <div class="card">
@@ -216,11 +216,11 @@
         </details>
         <details>
           <summary>Where does my data go?</summary>
-          <p>Reviews stay in <code>~/.claude/plugins/data/</code> on your machine, and the extension collects nothing. The review you send goes to Claude Code, like any other prompt. Details on the <a href="privacy.html">privacy page</a>.</p>
+          <p>Reviews stay in <code>~/.claude/plugins/data/</code> on your machine. The extension reads the app only during a review, and sends what it reads to that folder through the local relay, never to a server. The review you send goes to Claude Code, like any other prompt. Details on the <a href="privacy.html">privacy page</a>.</p>
         </details>
         <details>
           <summary>Do I need the Chrome extension?</summary>
-          <p>It opens the app next to the review page and sends the page's links to the app's half. Without it, the page offers an "Open the app alongside" button and you arrange the split view yourself.</p>
+          <p>Yes. It opens the app next to the review page, lets you comment on the app with a capture, shows the app's console errors in each step, and fills the step's form with the data Claude picked. <code>/review-walkthru</code> checks that Chrome has it and opens its Store page if not.</p>
         </details>
         <details>
           <summary>Does it run on Windows?</summary>
