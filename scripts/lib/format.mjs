@@ -7,6 +7,10 @@ export const REVIEW_FORMAT = 'review-walkthru/review@2'
 const SOURCES = ['author', 'inferred']
 const STATUSES = ['validated', 'commented', 'not_reached']
 const POINT_STATUSES = ['validated', 'commented', 'not_seen']
+const APP_KINDS = ['element', 'text', 'zone']
+const LOG_LEVELS = ['error', 'warning']
+const MAX_ENTRIES = 100
+const CAPTURE = /^captures\/r\d+-k\d+\.png$/
 
 const isObject = v => v !== null && typeof v === 'object' && !Array.isArray(v)
 const isText = v => typeof v === 'string' && v.trim() !== ''
@@ -95,7 +99,7 @@ export function validateScenario (s) {
       if (key in step) errors.push(`${at}.${key}: format 1 field, put it in a point (scenario@2)`)
     }
     checkPoints(step.points, `${at}.points`, errors)
-    if (step.prefill !== undefined && !Array.isArray(step.prefill)) errors.push(`${at}.prefill: must be an array`)
+    checkPrefill(step.prefill, `${at}.prefill`, prerequisites, errors)
 
     if (step.next !== null && step.next !== undefined) {
       if (!isObject(step.next)) errors.push(`${at}.next: must be an object or null`)
@@ -103,6 +107,7 @@ export function validateScenario (s) {
         const { stepId, instruction } = step.next
         if (stepId !== null && !knownSteps.includes(stepId)) errors.push(`${at}.next.stepId: unknown step "${stepId}"`)
         if (!isText(instruction)) errors.push(`${at}.next.instruction: required`)
+        if (step.next.detect !== undefined && step.next.detect !== null) checkDetect(step.next.detect, `${at}.next.detect`, errors)
       }
     }
 
@@ -116,6 +121,32 @@ export function validateScenario (s) {
     }
   })
   return errors
+}
+
+// Values Claude picks for the step's form; an account is named, its password stays in credentials.json.
+function checkPrefill (prefill, path, prerequisites, errors) {
+  if (prefill === undefined) return
+  if (!Array.isArray(prefill)) { errors.push(`${path}: must be an array`); return }
+  prefill.forEach((entry, i) => {
+    const at = `${path}[${i}]`
+    if (!isObject(entry)) { errors.push(`${at}: must be an object`); return }
+    if (!isText(entry.selector)) errors.push(`${at}.selector: required`)
+    const hasValue = 'value' in entry
+    const hasCredential = 'credential' in entry
+    if (hasValue === hasCredential) { errors.push(`${at}: needs a value or credential, not both`); return }
+    if (hasValue && !['string', 'boolean'].includes(typeof entry.value)) errors.push(`${at}.value: must be a string or a boolean`)
+    if (hasCredential) {
+      if (!prerequisites.includes(entry.credential)) errors.push(`${at}.credential: unknown prerequisite "${entry.credential}"`)
+      if (!['login', 'password'].includes(entry.field)) errors.push(`${at}.field: must be login or password`)
+    }
+  })
+}
+
+function checkDetect (detect, path, errors) {
+  if (!isObject(detect)) { errors.push(`${path}: must be an object`); return }
+  let valid = typeof detect.urlMatches === 'string'
+  if (valid) try { new RegExp(detect.urlMatches) } catch { valid = false }
+  if (!valid) errors.push(`${path}.urlMatches: must be a valid regular expression`)
 }
 
 function checkPoints (points, path, errors) {
@@ -145,7 +176,8 @@ function checkPoints (points, path, errors) {
 
 // required: ids of the steps of the current round, each expected exactly once (a stale tab
 // left on a replaced round must not skip one). Reopened skipped steps are optional.
-export function validateReview (r, { round, steps, required = [] }) {
+// hasCapture: whether the relay holds a cited capture file.
+export function validateReview (r, { round, steps, required = [], hasCapture = () => true }) {
   const errors = []
   if (!isObject(r)) return ['review: must be an object']
   if (r.format !== REVIEW_FORMAT) errors.push(`format: must be "${REVIEW_FORMAT}"`)
@@ -190,12 +222,67 @@ export function validateReview (r, { round, steps, required = [] }) {
       else commentIds.add(comment.id)
       if (!isText(comment.text)) errors.push(`${cat}.text: required`)
       const anchor = comment.anchor
-      if (!isObject(anchor) || !['step', 'point'].includes(anchor.kind)) {
-        errors.push(`${cat}.anchor: kind must be step or point`)
-      } else if (anchor.kind === 'point' && step && !pointIds.includes(anchor.id)) {
-        errors.push(`${cat}.anchor: unknown point "${anchor.id}"`)
+      if (!isObject(anchor) || !['step', 'point', ...APP_KINDS].includes(anchor.kind)) {
+        errors.push(`${cat}.anchor: kind must be step, point, ${APP_KINDS.join(', ')}`)
+      } else if (anchor.kind === 'point') {
+        if (step && !pointIds.includes(anchor.id)) errors.push(`${cat}.anchor: unknown point "${anchor.id}"`)
+        if (anchor.quote !== undefined && typeof anchor.quote !== 'string') errors.push(`${cat}.anchor.quote: must be a string`)
+      } else if (APP_KINDS.includes(anchor.kind)) {
+        checkAppAnchor(anchor, `${cat}.anchor`, hasCapture, errors)
       }
+    })
+    checkEntries(entry.logs, `${at}.logs`, errors, (log, p) => {
+      if (!LOG_LEVELS.includes(log.level)) errors.push(`${p}.level: must be one of ${LOG_LEVELS.join(', ')}`)
+      if (typeof log.text !== 'string') errors.push(`${p}.text: must be a string`)
+      if (typeof log.url !== 'string') errors.push(`${p}.url: must be a string`)
+    })
+    checkEntries(entry.requests, `${at}.requests`, errors, (req, p) => {
+      if (!isText(req.method)) errors.push(`${p}.method: required`)
+      if (typeof req.url !== 'string') errors.push(`${p}.url: must be a string`)
+      if (req.status !== null && !Number.isInteger(req.status)) errors.push(`${p}.status: must be an integer or null`)
+      if (req.error !== null && typeof req.error !== 'string') errors.push(`${p}.error: must be a string or null`)
+      if (typeof req.type !== 'string') errors.push(`${p}.type: must be a string`)
     })
   })
   return errors
+}
+
+// A comment made on the app: where it was, what it targets, and the capture the relay holds.
+function checkAppAnchor (anchor, path, hasCapture, errors) {
+  if (!checkUrl(anchor.url)) errors.push(`${path}.url: must be an http(s) URL`)
+  const rect = anchor.rect
+  if (!isObject(rect) || !['x', 'y', 'width', 'height'].every(k => Number.isFinite(rect[k])) || rect.width < 0 || rect.height < 0) {
+    errors.push(`${path}.rect: must be { x, y, width, height } in pixels`)
+  }
+  if (anchor.capture !== null && (typeof anchor.capture !== 'string' || !CAPTURE.test(anchor.capture) || !hasCapture(anchor.capture))) {
+    errors.push(`${path}.capture: must be null or an uploaded captures/<id>.png`)
+  }
+  const element = anchor.element
+  if (element === null || element === undefined) {
+    if (anchor.kind !== 'zone') errors.push(`${path}.element: required for ${anchor.kind}`)
+  } else if (!isObject(element) || typeof element.selector !== 'string' || typeof element.unique !== 'boolean' ||
+    typeof element.tag !== 'string' || (element.role !== null && typeof element.role !== 'string') || typeof element.text !== 'string') {
+    errors.push(`${path}.element: must be { selector, unique, tag, role, text }`)
+  }
+  if (anchor.kind === 'text' ? !isText(anchor.quote) : anchor.quote != null && typeof anchor.quote !== 'string') {
+    errors.push(`${path}.quote: ${anchor.kind === 'text' ? 'required' : 'must be a string or null'}`)
+  }
+  const context = anchor.context
+  if (context !== undefined && (!isObject(context) || !Number.isInteger(context.consoleErrors) || context.consoleErrors < 0 ||
+    (context.lastRequest !== null && !isObject(context.lastRequest)))) {
+    errors.push(`${path}.context: must be { consoleErrors, lastRequest }`)
+  }
+}
+
+// logs and requests of a step: optional, bounded, each with an ISO date.
+function checkEntries (list, path, errors, check) {
+  if (list === undefined) return
+  if (!Array.isArray(list)) { errors.push(`${path}: must be an array`); return }
+  if (list.length > MAX_ENTRIES) errors.push(`${path}: ${MAX_ENTRIES} entries at most`)
+  list.slice(0, MAX_ENTRIES).forEach((item, i) => {
+    const p = `${path}[${i}]`
+    if (!isObject(item)) { errors.push(`${p}: must be an object`); return }
+    if (typeof item.at !== 'string' || Number.isNaN(Date.parse(item.at))) errors.push(`${p}.at: must be an ISO date`)
+    check(item, p)
+  })
 }
