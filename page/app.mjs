@@ -5,11 +5,14 @@ import {
   pointStatus, stepStatus, counts, buildReview, isFinish, startUrl, mergeState, setDraft, draftKey
 } from './review.mjs'
 import { pickLang, t as translate, counterText, pointsSeenText } from './i18n.mjs'
+import { createBridge, gate } from './bridge.mjs'
 
 const lang = pickLang(navigator.languages ?? [navigator.language])
 document.documentElement.lang = lang
 const t = (key, vars) => translate(lang, key, vars)
 const POLL_MS = 3000
+const HELLO_MS = 3000
+const STORE_URL = 'https://chromewebstore.google.com/detail/kjigknfmabifbopeelbckkilheemoedh'
 const STATUS_LABEL = { validated: 'statusValidated', commented: 'statusCommented', not_reached: 'statusNotReached' }
 const SVG_NS = 'http://www.w3.org/2000/svg'
 // Drawn icons, one stroke weight (no emoji or glyph as an icon).
@@ -33,8 +36,7 @@ let s = null // state of the round (review.mjs)
 let composer = null // { stepId, anchor, focus } of the open comment box; focus only right after opening it
 let notice = null // { text, details? }
 let sending = false
-let extensionChecked = false // the extension marks <html> on load; give it a moment before offering the fallback
-setTimeout(() => { extensionChecked = true; if (data) render() }, 1500)
+const bridge = createBridge(window)
 
 const prefix = () => `rw:${data.scenario.pr.repo}#${data.scenario.pr.number}`
 const stepsById = () => new Map([...data.scenario.steps, ...data.skippedSteps].map(step => [step.id, step]))
@@ -149,11 +151,16 @@ function banner () {
     notice.details?.length ? h('ul', {}, notice.details.map(d => h('li', {}, d))) : null)
 }
 
-// Shown only when the extension did not mark the page: one click opens the app.
-function openAppBox () {
-  if (!extensionChecked || document.documentElement.dataset.rwExtension) return null
-  return h('div', { class: 'tip' }, h('p', {}, t('noExtension')),
-    appLink(startUrl(data.scenario), t('openApp'), { class: 'button primary small' }))
+// The review needs the extension: without it, or with one older than the page's protocol,
+// the page only says how to get it.
+function gateView (access) {
+  const install = access === 'install'
+  return h('main', { class: 'gate' },
+    h('h1', {}, t(install ? 'gateInstallTitle' : 'gateUpdateTitle')),
+    h('p', {}, t(install ? 'gateInstallBody' : 'gateUpdateBody')),
+    h('p', { class: 'actions' },
+      install ? h('a', { href: STORE_URL, target: '_blank', rel: 'noopener', class: 'button primary' }, t('gateInstallLink')) : null,
+      h('button', { type: 'button', class: 'ghost', onclick: () => location.reload() }, t('reload'))))
 }
 
 function copyButton (value) {
@@ -346,7 +353,7 @@ function view () {
     return [...out, h('main', { class: 'done' }, h('p', {}, t(finished ? 'finished' : 'sent')))]
   }
   const step = s.current < s.order.length ? stepsById().get(s.order[s.current]) : null
-  return [...out, openAppBox(), header(step), step ? stepView(step) : endView(), footer(step)]
+  return [...out, header(step), step ? stepView(step) : endView(), footer(step)]
 }
 
 // The page rebuilds its DOM on every change: give the focus back to the same control,
@@ -361,4 +368,6 @@ function render () {
   else if (focusKey) root.querySelector(`[data-focus-key="${CSS.escape(focusKey)}"]`)?.focus()
 }
 
-load()
+const access = gate(await bridge.waitForHello(HELLO_MS), document.documentElement.hasAttribute('data-rw-extension'))
+if (access === 'ok') load()
+else document.getElementById('app').replaceChildren(gateView(access))

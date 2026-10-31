@@ -24,7 +24,6 @@ test('page copy', () => {
   assert.equal(t('en', 'docTitle', { n: 40 }), 'Review · PR #40')
   assert.equal(t('fr', 'colon'), ' : ')
   assert.equal(t('en', 'colon'), ': ')
-  assert.equal(t('fr', 'openApp'), "Ouvrir l'app à côté")
   assert.equal(counterText('fr', 1, 2), '1 commentaire · 2 points à voir')
   assert.equal(counterText('fr', 0, 1), '0 commentaire · 1 point à voir')
   assert.equal(counterText('fr', 3, 0), '3 commentaires · 0 point à voir')

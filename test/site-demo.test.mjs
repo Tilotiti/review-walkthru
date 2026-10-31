@@ -90,7 +90,7 @@ test('buildSite assembles the demo next to the real page code', async () => {
   const { join } = await import('node:path')
   const out = await mkdtemp(join(tmpdir(), 'rw-site-'))
   await buildSite({ root: fileURLToPath(new URL('..', import.meta.url)), out })
-  for (const file of ['index.html', 'demo/index.html', 'demo/app.mjs', 'demo/review.mjs', 'demo/i18n.mjs', 'demo/style.css', 'demo/app/clients/index.html']) {
+  for (const file of ['index.html', 'demo/index.html', 'demo/app.mjs', 'demo/review.mjs', 'demo/bridge.mjs', 'demo/i18n.mjs', 'demo/style.css', 'demo/app/clients/index.html']) {
     assert.ok(existsSync(join(out, file)), file)
   }
 })
@@ -121,4 +121,9 @@ test('step 3 opens the client that step 2 creates', () => {
 test('the mock app table fits the narrow demo pane', () => {
   assert.match(readFileSync(new URL('../site/demo/app/app.css', import.meta.url), 'utf8'), /@media \(max-width: \d+px\) \{[^@]*\.wide-only \{ display: none/)
   assert.match(readFileSync(new URL('../site/demo/app/clients/index.html', import.meta.url), 'utf8'), /<th class="wide-only">Contacts<\/th>/)
+})
+
+test("the demo answers the page's ping with a hello, as the extension does", () => {
+  const source = readFileSync(new URL('../site/demo/demo.mjs', import.meta.url), 'utf8')
+  assert.match(source, /source: 'review-walkthru-extension', type: 'hello', protocol: 1/)
 })

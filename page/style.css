@@ -159,6 +159,9 @@ a.button.go { display: inline-flex; gap: 6px; align-items: center; border: 1px s
 .nav .primary { flex: 1; }
 .review { display: flex; gap: 10px; align-items: center; justify-content: space-between; }
 
+.gate { padding: 48px 28px; }
+.gate p { color: var(--muted); max-width: 46ch; }
+.gate .actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 18px; }
 .done { display: flex; align-items: center; justify-content: center; padding: 48px 24px; text-align: center; font-size: 18px; }
 
 /* Controls */

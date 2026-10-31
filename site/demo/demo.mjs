@@ -22,8 +22,12 @@ window.fetch = createDemoFetch({ round, scenario, credentials, skippedSteps, sub
 
 // The demo content is English: keep the page in English whatever the visitor's browser says.
 Object.defineProperty(navigator, 'languages', { get: () => ['en'] })
-// Act as the extension does, so the page does not offer its manual split-view fallback.
+// Act as the extension does: the page refuses to run until the extension answers its ping.
 document.documentElement.dataset.rwExtension = '1'
+window.addEventListener('message', event => {
+  if (event.source !== window || event.data?.source !== 'review-walkthru-page' || event.data.type !== 'ping') return
+  window.postMessage({ source: 'review-walkthru-extension', type: 'hello', protocol: 1, version: 'demo', shortcut: '' }, location.origin)
+})
 
 // App links point at localhost:8000: show the matching mock page instead.
 document.addEventListener('click', event => {
