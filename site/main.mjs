@@ -11,6 +11,18 @@ for (const button of document.querySelectorAll('.copy')) {
   })
 }
 
+// Film: the YouTube player loads only on click, so the page makes no request to YouTube before that.
+for (const button of document.querySelectorAll('[data-youtube]')) {
+  button.addEventListener('click', () => {
+    const player = document.createElement('iframe')
+    player.src = `https://www.youtube-nocookie.com/embed/${button.dataset.youtube}?autoplay=1&rel=0&playsinline=1`
+    player.title = 'Review Walkthru, the film'
+    player.allow = 'autoplay; encrypted-media; picture-in-picture; fullscreen'
+    player.allowFullscreen = true
+    button.replaceWith(player)
+  })
+}
+
 // How: the step whose top crossed 45% of the viewport picks the visual on the right.
 const stage = document.querySelector('.stage')
 const steps = [...document.querySelectorAll('.steps li')]
