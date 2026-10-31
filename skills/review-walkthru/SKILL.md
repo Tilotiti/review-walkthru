@@ -1,7 +1,7 @@
 ---
 name: review-walkthru
 description: Turns a pull request into a guided, step-by-step review in Chrome on the locally running app, collects the reviewer's comments in one prompt, runs fix rounds, and pushes the fixes once the reviewer approves. Use when the user runs /review-walkthru or asks to walk through, test or review a PR in the browser.
-argument-hint: [PR URL or number] [--restart]
+argument-hint: "[PR URL or number] [--restart]"
 allowed-tools:
   - Bash(node "${CLAUDE_PLUGIN_ROOT}/scripts/run.mjs" *)
   - Bash(node "${CLAUDE_PLUGIN_ROOT}/scripts/relay.mjs" *)

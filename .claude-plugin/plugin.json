@@ -1,6 +1,6 @@
 {
   "name": "review-walkthru",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "Turns a pull request into a real acceptance test: every screen, every decision Claude made, checked in your running app.",
   "author": { "name": "Thibault Henry" },
   "license": "MIT",
