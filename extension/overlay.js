@@ -1,9 +1,11 @@
 // What the reviewer sees on top of the app: the comment mode, the bubble, the button on a
-// selected text, the numbered pins. One closed shadow root, so the app's styles and scripts
-// leave it alone. app.js decides what each gesture does.
+// selected text, the numbered pins, the flash of a point's element. One closed shadow root, so
+// the app's styles and scripts leave it alone. app.js decides what each gesture does.
 globalThis.RW_OVERLAY = (() => {
   const ORANGE = '#ff9f0a'
   const DRAG_PX = 6
+  const FLASH_MS = 2200
+  const FLASH_PAD = 4
   const msg = (key, ...args) => chrome.i18n.getMessage(key, args.map(String))
   const STYLE = `
     :host { all: initial; }
@@ -25,6 +27,11 @@ globalThis.RW_OVERLAY = (() => {
     .sel { position: fixed; display: none; pointer-events: auto; box-shadow: 0 4px 14px rgba(0,0,0,.2); }
     .pin { position: fixed; width: 22px; height: 22px; border-radius: 50% 50% 50% 0; background: ${ORANGE}; color: #fff; font-weight: 700; font-size: 11px;
       display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 6px rgba(0,0,0,.25); pointer-events: none; }
+    .flash { position: fixed; border: 2px solid ${ORANGE}; border-radius: 8px; background: rgba(255, 159, 10, .08); pointer-events: none; opacity: 0; }
+    .flash.on { animation: rw-flash ${FLASH_MS}ms cubic-bezier(.2, .8, .2, 1) forwards, rw-ring 700ms ease-out 2; }
+    @keyframes rw-flash { 0% { opacity: 0 } 8%, 80% { opacity: 1 } 100% { opacity: 0 } }
+    @keyframes rw-ring { from { box-shadow: 0 0 0 0 rgba(255, 159, 10, .55) } to { box-shadow: 0 0 0 14px rgba(255, 159, 10, 0) } }
+    @media (prefers-reduced-motion: reduce) { .flash.on { animation: rw-flash ${FLASH_MS}ms linear forwards; } }
     @media (prefers-color-scheme: dark) {
       .bubble { background: #1b1b1f; color: #ececf1; border-color: #2f2f36; }
       .target { color: #a4a4b0; }
@@ -227,6 +234,55 @@ globalThis.RW_OVERLAY = (() => {
     schedulePins()
   }
 
+  // ---- a point's element: scrolled into view, outlined for a moment, then gone ----
+  // Nothing stays on the app: the box lives in the overlay and leaves once its animation ends.
+
+  let flashing = null // { box, timer, unlisten }
+
+  function stopFlash () {
+    if (!flashing) return
+    clearTimeout(flashing.timer)
+    flashing.unlisten?.()
+    flashing.box.remove()
+    flashing = null
+  }
+
+  function flash (el) {
+    ensure()
+    stopFlash()
+    const box = make('div', 'flash', root)
+    const current = flashing = { box, timer: 0, unlisten: null }
+    const follow = () => {
+      if (flashing !== current) return
+      const r = el.getBoundingClientRect()
+      Object.assign(box.style, { left: `${r.x - FLASH_PAD}px`, top: `${r.y - FLASH_PAD}px`, width: `${r.width + 2 * FLASH_PAD}px`, height: `${r.height + 2 * FLASH_PAD}px` })
+      requestAnimationFrame(follow)
+    }
+    follow()
+    // The animation waits for the scroll to stop, so the reviewer sees it from its start.
+    const play = () => {
+      if (flashing !== current) return
+      current.unlisten?.()
+      current.unlisten = null
+      box.classList.add('on')
+      clearTimeout(current.timer)
+      current.timer = setTimeout(stopFlash, FLASH_MS)
+    }
+    const r = el.getBoundingClientRect()
+    if (r.top >= 0 && r.left >= 0 && r.bottom <= innerHeight && r.right <= innerWidth) return play()
+    // scrollend ends the wait. A busy tab may start its smooth scroll late, and an element in a
+    // container that cannot scroll never sends one: each scroll pushes the start back, and a
+    // page that does not move starts it after a second.
+    const later = ms => { clearTimeout(current.timer); current.timer = setTimeout(play, ms) }
+    const onScroll = () => later(300)
+    addEventListener('scroll', onScroll, true)
+    addEventListener('scrollend', play, true)
+    current.unlisten = () => { removeEventListener('scroll', onScroll, true); removeEventListener('scrollend', play, true) }
+    later(1000)
+    const smooth = !matchMedia('(prefers-reduced-motion: reduce)').matches
+    el.scrollIntoView({ block: r.height > innerHeight * 0.8 ? 'start' : 'center', inline: 'nearest', behavior: smooth ? 'smooth' : 'instant' })
+  }
+
   // ---- captures leave the overlay out ----
 
   const hideForCapture = () => { ensure(); host.style.visibility = 'hidden' }
@@ -240,6 +296,8 @@ globalThis.RW_OVERLAY = (() => {
     showSelectionButton,
     hideSelectionButton,
     setPins,
+    flash,
+    stopFlash,
     hideForCapture,
     restoreAfterCapture,
     isOverlay: node => node === host

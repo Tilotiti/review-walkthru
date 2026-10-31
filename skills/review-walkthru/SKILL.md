@@ -106,6 +106,7 @@ Shape (all fields required unless marked optional):
       {
         "id": "connection-card", "title": "The Connection card",
         "do": "Google and Microsoft show their address and an Unlink button.",
+        "target": { "selector": "[data-testid=connection-card]", "text": "Google" },
         "decisions": [ { "id": "d1", "text": "Small red outlined button, no icon.", "cost": "One template line.", "source": "author" } ],
         "doubts": []
       },
@@ -138,6 +139,7 @@ Rules:
 - Keep step and point ids stable across rounds; change one only when it changes meaning.
 - Write in the reviewer's language (see Language).
 - `"prefill"` (optional): the form of the step, filled when the reviewer clicks "Prefill the form". Pick values that hold together across the round: the client one step creates is the one the next step searches for. A test account goes through `{ "selector", "credential": "<prerequisite id>", "field": "login" | "password" }`, never its password. Use selectors that last: `name`, `id`, `data-testid`.
+- `"target"` on a point (optional): the element the point is about, when the step's screen shows it as soon as it loads. A "Show" button on the point scrolls the app to it and outlines it for two seconds; nothing stays on the app afterwards. If the element is not on the app's current page, the button first opens the step's screen (`start`, else `path`). `selector` must match one visible element, alone or narrowed by `text` (part of its text, case ignored): with no match or several, the page shows nothing rather than the wrong element. Give no target to what appears only after an action (a modal, an error message, an open menu) or to a "To judge" point. Pick selectors that last, as for `prefill`.
 - `"detect"` in `next` (optional): `urlMatches`, a regular expression on the path and query of the app's URL. When the app reaches it, the page moves on to `next.stepId` by itself. Add it when the next screen has a URL of its own (`"^/clients/new$"`, `"^/clients/\\d+$"`).
 - `path` is the screen of the step; `start` is where the reviewer lands on it when that differs, such as a given record (`"path": "/admin/users"`, `"start": "/admin/users/01a18e53-…"`). A `start` path needs a `startLabel`: the name a user gives that page ("Jane Martin's profile"), never the URL. The page turns them into one button and drops the link to `path`.
 
@@ -191,7 +193,7 @@ Read the last line of its output.
 ### `REVIEW <file>`
 
 1. Start the relay again in the background right away, so the page keeps a server while you work. It serves the sent round, and the page stays on "Review sent".
-2. Read the review (`review-walkthru/review@2`): each step has a `status` (`validated`, `commented`, `not_reached`), the status of each of its `points` (`validated`, `commented`, `not_seen`), its `comments`, and what the app's console and network reported during the step (`logs`, `requests`). A point the reviewer neither checked nor commented is `not_seen`: it comes back next round. A comment's `anchor` says what it targets:
+2. Read the review (`review-walkthru/review@2`): each step has a `status` (`validated`, `commented`, `not_reached`), the status of each of its `points` (`validated`, `commented`, `not_seen`), its `comments`, and what the app's console and network reported during the step (`logs`, `requests`). A point the reviewer neither checked nor commented is `not_seen`: it comes back next round. `missedTargets` lists the points whose "Show" found nothing on the step's screen: next round, fix their `target` from the code, or drop it. A comment's `anchor` says what it targets:
    - `point` (`id`, maybe a `quote` the reviewer selected) or `step`: the scenario itself;
    - `element`, `text`, `zone`: something on the app, at `url`. `element` gives `selector`, `tag`, `role` and `text` (search the code by the text first, the selector second); `text` adds the selected `quote`; `zone` is an area (`rect`). `capture` is a picture of it, relative to `<runDir>` (`captures/r1-k3.png`): read it with Read before you answer, it shows what the reviewer saw. `null` means no capture. `context` gives the console errors so far in the step and the last request.
 3. In the conversation, go through every comment: what you fix, what you answer (a question), what you decline and why, what you defer. Discuss with the reviewer.

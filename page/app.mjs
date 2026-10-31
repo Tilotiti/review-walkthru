@@ -3,7 +3,8 @@
 import {
   addComment, removeComment, togglePoint, goNext, goPrev, reopen,
   pointStatus, stepStatus, counts, buildReview, isFinish, startUrl, mergeState, setDraft, draftKey,
-  nextCommentId, addAppComment, setCapture, addLog, addRequest, issues, appComments, pinsFor, prefillFields, detectTarget, goToStep
+  nextCommentId, addAppComment, setCapture, addLog, addRequest, issues, appComments, pinsFor, prefillFields, detectTarget, goToStep,
+  stepPage, setTargetFound
 } from './review.mjs'
 import { pickLang, t as translate, counterText, pointsSeenText, issuesText, prefillLabel, prefillText, endIssuesText } from './i18n.mjs'
 import { createBridge, gate } from './bridge.mjs'
@@ -13,6 +14,7 @@ document.documentElement.lang = lang
 const t = (key, vars) => translate(lang, key, vars)
 const POLL_MS = 3000
 const HELLO_MS = 3000
+const LOCATE_WAIT_MS = 4000 // an app may render the element after its load
 const STORE_URL = 'https://chromewebstore.google.com/detail/kjigknfmabifbopeelbckkilheemoedh'
 const STATUS_LABEL = { validated: 'statusValidated', commented: 'statusCommented', not_reached: 'statusNotReached' }
 const SVG_NS = 'http://www.w3.org/2000/svg'
@@ -23,6 +25,7 @@ const ICONS = {
   decision: '<path d="M8 2v12M4 5h8M4 5l-2 4h4zM12 5l-2 4h4z"/>',
   doubt: '<circle cx="8" cy="8" r="6"/><path d="M6.3 6.3a1.8 1.8 0 113 1.4c-.7.4-1.3.8-1.3 1.6M8 11.4v.1"/>',
   out: '<path d="M9 3h4v4M13 3L7.5 8.5M11 9.5V13H3V5h3.5"/>',
+  locate: '<circle cx="8" cy="8" r="4.5"/><path d="M8 1.5v3M8 11.5v3M1.5 8h3M11.5 8h3"/>',
   left: '<path d="M10 3.5L5.5 8l4.5 4.5"/>',
   right: '<path d="M6 3.5L10.5 8 6 12.5"/>'
 }
@@ -40,6 +43,9 @@ let sending = false
 const bridge = createBridge(window)
 let hello = null // the extension's hello: its version and the comment shortcut
 let appReady = false // the app half runs the extension's script
+let appUrl = null // where the app half is, from app-ready and navigated
+let locating = null // { id, stepId, pointId, target, url, openUrl, opening } of the last "Show"
+let missedPoint = null // "stepId:pointId" whose last "Show" found nothing: said under its button
 let coverage = null // { origin, covered }: whether the extension may run in the app
 const pendingCaptures = new Set() // comment ids whose capture is being uploaded
 let pendingPrefill = null // { id, unresolved } of the last prefill request
@@ -52,6 +58,7 @@ const sameAnchor = (a, b) => a.kind === b.kind && a.id === b.id
 const currentStepId = () => s.order[Math.min(s.current, s.order.length - 1)]
 const shortcutKey = () => hello?.shortcut || (/Mac/.test(navigator.platform) ? '⌥⇧C' : t('altShortcut'))
 const live = () => s && data && !data.submitted
+const pageKey = url => { try { const u = new URL(url); return u.origin + u.pathname + u.search } catch { return null } }
 
 function icon (name) {
   const svg = document.createElementNS(SVG_NS, 'svg')
@@ -88,12 +95,19 @@ function sendPins () {
 
 // ---- messages from the extension ----
 
-bridge.on('app-ready', () => { appReady = true; sendPins(); render() })
+bridge.on('app-ready', ({ url }) => {
+  appReady = true
+  appUrl = url ?? appUrl
+  sendPins()
+  if (locating?.opening) { locating.opening = false; sendLocate(LOCATE_WAIT_MS) }
+  render()
+})
 bridge.on('app-gone', () => { appReady = false; render() })
 bridge.on('coverage', message => { coverage = { origin: message.origin, covered: message.covered }; render() })
 bridge.on('shortcut-in-review', () => { notice = { text: t('shortcutInReview', { key: shortcutKey() }) }; render() })
 
 bridge.on('navigated', ({ url }) => {
+  appUrl = url
   if (!live()) return
   sendPins()
   const step = stepsById().get(s.order[s.current])
@@ -127,6 +141,36 @@ bridge.on('prefilled', ({ id, filled, missing, unsupported }) => {
   pendingPrefill = null
   render()
 })
+
+// A miss counts only on the step's own screen: elsewhere (a login page) the element may just be away.
+bridge.on('located', ({ id, found }) => {
+  if (locating?.id !== id) return
+  if (!found && locating.openUrl) {
+    locating.opening = true
+    bridge.send('open', { url: locating.openUrl })
+    locating.openUrl = null
+    return
+  }
+  const { stepId, pointId, url } = locating
+  locating = null
+  missedPoint = found ? null : `${stepId}:${pointId}`
+  const onPage = !url || pageKey(appUrl) === pageKey(url)
+  if (live() && s.entries[stepId] && (found || onPage)) update(setTargetFound(s, stepId, pointId, found))
+  else render()
+})
+
+// "Show" looks on the app's current page first. When the element is not there and the step has a
+// screen of its own, the app opens that screen and the extension looks again once it loads.
+function show (step, point) {
+  const page = stepPage(step)
+  const url = page && new URL(page, data.scenario.app.baseUrl).href
+  const here = !url || pageKey(url) === pageKey(appUrl)
+  if (missedPoint === `${step.id}:${point.id}`) { missedPoint = null; render() }
+  locating = { id: `${step.id}:${point.id}:${Date.now()}`, stepId: step.id, pointId: point.id, target: point.target, url, openUrl: here ? null : url, opening: false }
+  sendLocate(here ? LOCATE_WAIT_MS : 0)
+}
+
+const sendLocate = wait => bridge.send('locate', { id: locating.id, selector: locating.target.selector, text: locating.target.text ?? null, wait })
 
 // The capture goes to the relay at once: localStorage could not hold the image until the review is sent.
 async function uploadCapture (round, stepId, id, dataUrl) {
@@ -422,9 +466,13 @@ function pointView (step, point) {
           (point.decisions ?? []).map(it => note('decision', it)))
         : null,
       commentList(step, comments),
+      point.target && appReady && hello?.features?.includes('locate')
+        ? h('button', { type: 'button', class: 'ghost small pt-btn', title: t('showTitle'), onclick: () => show(step, point) }, icon('locate'), t('show'))
+        : null,
       open
         ? composerBox(step.id, composer.anchor)
-        : h('button', { type: 'button', class: 'ghost small comment-btn', onclick: () => { composer = { stepId: step.id, anchor, focus: true }; render() } }, icon('bubble'), t('comment'))))
+        : h('button', { type: 'button', class: 'ghost small pt-btn', onclick: () => { composer = { stepId: step.id, anchor, focus: true }; render() } }, icon('bubble'), t('comment')),
+      missedPoint === `${step.id}:${point.id}` ? h('p', { class: 'muted small missed', role: 'status' }, t('targetMissing')) : null))
 }
 
 function stepView (step) {

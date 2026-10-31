@@ -171,6 +171,11 @@ function checkPoints (points, path, errors) {
     if (point.alreadyValidated !== undefined && typeof point.alreadyValidated !== 'boolean') {
       errors.push(`${at}.alreadyValidated: must be a boolean`)
     }
+    // The element "Show" scrolls the app to: a selector, narrowed by part of its text.
+    if (point.target !== undefined && point.target !== null) {
+      if (!isObject(point.target) || !isText(point.target.selector)) errors.push(`${at}.target: must be { selector, text? }`)
+      else if (point.target.text !== undefined && point.target.text !== null && !isText(point.target.text)) errors.push(`${at}.target.text: must be a non-empty string`)
+    }
   })
 }
 
@@ -210,6 +215,9 @@ export function validateReview (r, { round, steps, required = [], hasCapture = (
     for (const [id, status] of Object.entries(entry.points)) {
       if (!POINT_STATUSES.includes(status)) errors.push(`${at}.points.${id}: must be one of ${POINT_STATUSES.join(', ')}`)
       else if ((status === 'commented') !== commentedPoints.has(id)) errors.push(`${at}.points.${id}: "commented" if and only if a comment targets it`)
+    }
+    if (entry.missedTargets !== undefined && (!Array.isArray(entry.missedTargets) || (step && !entry.missedTargets.every(id => pointIds.includes(id))))) {
+      errors.push(`${at}.missedTargets: must list points of step "${entry.stepId}"`)
     }
     const expected = entry.comments.length > 0 ? 'commented'
       : Object.values(entry.points).every(v => v === 'validated') ? 'validated' : 'not_reached'

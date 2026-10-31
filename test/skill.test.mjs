@@ -24,7 +24,7 @@ test('plugin.json carries every directory listing link, and site links have a pa
 // Every command and scenario field the scripts handle is explained to Claude.
 test('SKILL.md covers the extension, prefill, detection, captures and the console', () => {
   const skill = readFileSync(new URL('../skills/review-walkthru/SKILL.md', import.meta.url), 'utf8')
-  for (const words of ['run.mjs" extension', '"prefill"', '"detect"', '"credential"', 'captures/', '`logs`', '`requests`', '"unreadable"']) {
+  for (const words of ['run.mjs" extension', '"prefill"', '"target"', '`missedTargets`', '"detect"', '"credential"', 'captures/', '`logs`', '`requests`', '"unreadable"']) {
     assert.ok(skill.includes(words), words)
   }
   assert.doesNotMatch(skill, /Open the app alongside/)

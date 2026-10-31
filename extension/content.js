@@ -2,7 +2,8 @@
 // data-review-walkthru on <html>. Two channels with the page:
 // - attributes, kept from 0.4 so an older page still works: the page writes the app URL to
 //   data-rw-app-url (split view) and sets data-rw-finished (leave it); app links carry data-rw-app-link;
-// - window.postMessage for the rest: hello, the app's comments and console, prefill, pins.
+// - window.postMessage for the rest: hello, the app's comments and console, prefill, pins,
+//   locate (a point's element) and open (load a page in the app's half).
 (() => {
   const root = document.documentElement
   if (!root.hasAttribute('data-review-walkthru')) return
@@ -15,7 +16,8 @@
   // ready: answering the page's ping tells the worker this page takes the app's comments.
   async function hello (ready = false) {
     const info = await toWorker({ type: 'rw:review-hello', ready })
-    post('hello', { protocol: PROTOCOL, version: info?.version ?? '', shortcut: info?.shortcut ?? '' })
+    // features: what this extension does beyond the protocol, so a newer page offers only that.
+    post('hello', { protocol: PROTOCOL, version: info?.version ?? '', shortcut: info?.shortcut ?? '', features: ['locate'] })
   }
 
   let sent = false
@@ -45,22 +47,24 @@
   new MutationObserver(tryUnsplit).observe(root, { attributes: true, attributeFilter: ['data-rw-finished'] })
 
   // In split view, an app link loads in the other half instead of a new tab.
+  const openApp = (url, target) => chrome.runtime.sendMessage({ type: 'review-walkthru:navigate', url })
+    .then(result => { if (!result?.ok) window.open(url, target) })
+    .catch(() => window.open(url, target))
   document.addEventListener('click', event => {
     const link = event.target.closest?.('a[data-rw-app-link]')
     if (!link || root.dataset.rwSplit !== 'ok' || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey) return
     event.preventDefault()
-    chrome.runtime.sendMessage({ type: 'review-walkthru:navigate', url: link.href })
-      .then(result => { if (!result?.ok) window.open(link.href, link.target) })
-      .catch(() => window.open(link.href, link.target))
+    openApp(link.href, link.target)
   }, true)
 
   // Page → app (through the worker), and the page's ping.
-  const TO_APP = ['prefill', 'pins', 'comment-mode']
+  const TO_APP = ['prefill', 'pins', 'comment-mode', 'locate']
   window.addEventListener('message', event => {
     if (event.source !== window || event.data?.source !== 'review-walkthru-page') return
     const { source, type, ...payload } = event.data
     if (type === 'ping') hello(true)
     else if (type === 'grant') toWorker({ type: 'rw:grant', origin: payload.origin })
+    else if (type === 'open' && typeof payload.url === 'string') openApp(payload.url, 'review-walkthru-app')
     else if (TO_APP.includes(type)) toWorker({ type: 'rw:to-app', message: { type, ...payload } })
   })
 

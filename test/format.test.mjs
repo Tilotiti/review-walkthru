@@ -54,6 +54,13 @@ test('points', () => {
   assert.ok(validateScenario(badDo).some(e => e.includes('do')))
   const badFlag = clone(r1); badFlag.steps[0].points[0].alreadyValidated = 'yes'
   assert.ok(validateScenario(badFlag).some(e => e.includes('alreadyValidated')))
+  const target = clone(r1); target.steps[0].points[0].target = { selector: 'table.clients', text: 'Name' }
+  target.steps[0].points[1].target = { selector: 'select[name=status]' }
+  assert.deepEqual(validateScenario(target), [])
+  for (const bad of ['#x', { text: 'Name' }, { selector: ' ' }, { selector: '#x', text: '' }]) {
+    const s = clone(r1); s.steps[0].points[0].target = bad
+    assert.ok(validateScenario(s).some(e => e.includes('target')), JSON.stringify(bad))
+  }
 })
 
 test('validateReview v2', () => {
