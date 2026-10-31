@@ -39,7 +39,19 @@ Talk to the reviewer in their language, in every message of the review, includin
 node "${CLAUDE_PLUGIN_ROOT}/scripts/run.mjs" check
 ```
 
-If `ok` is false, list what is missing and stop.
+`extension` says whether Chrome holds the Review Walkthru extension, in which profile, and its `problem` if any. The review needs it: the page refuses to run without it.
+
+- `ok` is false only because of the extension (`problem` is `"absent"`, `"disabled"` or `"outdated"`): tell the reviewer which. For `"absent"`, open its Chrome Web Store page in Chrome:
+
+  ```
+  node "${CLAUDE_PLUGIN_ROOT}/scripts/run.mjs" extension
+  ```
+
+  For `"disabled"` or `"outdated"`, point them to `chrome://extensions` (enable it, or turn on Developer mode and click Update). Ask them to say when it is done, then run `check` again. Chrome writes its files a little after an install: if they confirm and `check` still does not see it, carry on; the review page blocks if the extension is really missing. If they do not want the extension, stop: the review does not work without it.
+- `problem` is `"unreadable"`: Chrome's files changed shape. Carry on; the page checks for itself.
+- Anything else missing: list it and stop.
+
+Do this before reading the PR, so the reviewer installs the extension while you prepare the app.
 
 ## 2. Read the PR
 
@@ -104,7 +116,11 @@ Shape (all fields required unless marked optional):
         "doubts": []
       }
     ],
-    "next": { "stepId": "account-last-method", "instruction": "Stay on the account page" },
+    "prefill": [
+      { "selector": "input[name=reason]", "value": "Account merged" },
+      { "selector": "input[name=_username]", "credential": "admin", "field": "login" }
+    ],
+    "next": { "stepId": "account-last-method", "instruction": "Stay on the account page", "detect": { "urlMatches": "^/admin/users/[^/]+$" } },
     "reason": null
   } ],
   "skipped": []
@@ -121,6 +137,8 @@ Rules:
 - `round` is the work folder's round plus one. `headSha` is the PR head you review.
 - Keep step and point ids stable across rounds; change one only when it changes meaning.
 - Write in the reviewer's language (see Language).
+- `"prefill"` (optional): the form of the step, filled when the reviewer clicks "Prefill the form". Pick values that hold together across the round: the client one step creates is the one the next step searches for. A test account goes through `{ "selector", "credential": "<prerequisite id>", "field": "login" | "password" }`, never its password. Use selectors that last: `name`, `id`, `data-testid`.
+- `"detect"` in `next` (optional): `urlMatches`, a regular expression on the path and query of the app's URL. When the app reaches it, the page moves on to `next.stepId` by itself. Add it when the next screen has a URL of its own (`"^/clients/new$"`, `"^/clients/\\d+$"`).
 - `path` is the screen of the step; `start` is where the reviewer lands on it when that differs, such as a given record (`"path": "/admin/users"`, `"start": "/admin/users/01a18e53-…"`). A `start` path needs a `startLabel`: the name a user gives that page ("Jane Martin's profile"), never the URL. The page turns them into one button and drops the link to `path`.
 
 ## 5. Prepare the app
@@ -160,7 +178,9 @@ node "${CLAUDE_PLUGIN_ROOT}/scripts/run.mjs" open "<runDir>"
 
 If `open` fails, read the relay's output. On `ERROR port … unavailable`: run `node "${CLAUDE_PLUGIN_ROOT}/scripts/run.mjs" port "<runDir>"`, start the relay again, then `open` again (the reviewer gets a new tab).
 
-`open` shows only the review page, in a **new Chrome window** that may open behind this app: say so. With the Review Walkthru extension installed (Chrome 155 or later), the app opens on its own to the left of the page, in split view. Without it, the page offers "Open the app alongside". If the reviewer has not installed the extension, tell them once that it lives on the Chrome Web Store: https://chromewebstore.google.com/detail/kjigknfmabifbopeelbckkilheemoedh
+`open` shows the review page in a **new Chrome window**, in the profile that holds the extension; the window may open behind this app: say so. The extension opens the app on its own to the left of the page, in split view (Chrome 155 or later).
+
+Tell the reviewer how to comment on the app itself: ⌥⇧C on macOS, Alt+Shift+C elsewhere, with the app half focused (or the extension's icon, or a right-click on an element or a selected text). Click an element to pin it, drag to frame an area, or select a text. Each comment carries a capture of what they pointed at. If the app runs on another host than `localhost`, `*.localhost` or `127.0.0.1`, the page asks them to allow the extension there once.
 
 Tell the reviewer what is waiting for them (number of steps, accounts in the page, how to send), then end your turn. The relay exits when the review arrives, and that wakes you up.
 
@@ -171,8 +191,10 @@ Read the last line of its output.
 ### `REVIEW <file>`
 
 1. Start the relay again in the background right away, so the page keeps a server while you work. It serves the sent round, and the page stays on "Review sent".
-2. Read the review (`review-walkthru/review@2`): each step has a `status` (`validated`, `commented`, `not_reached`), the status of each of its `points` (`validated`, `commented`, `not_seen`) and its `comments`, each anchored to a point (`{ "kind": "point", "id" }`) or to the whole step. A point the reviewer neither checked nor commented is `not_seen`: it comes back next round.
-3. In the conversation, go through every comment: what you fix, what you answer (a question), what you decline and why, what you defer. Discuss with the reviewer.
+2. Read the review (`review-walkthru/review@2`): each step has a `status` (`validated`, `commented`, `not_reached`), the status of each of its `points` (`validated`, `commented`, `not_seen`), its `comments`, and what the app's console and network reported during the step (`logs`, `requests`). A point the reviewer neither checked nor commented is `not_seen`: it comes back next round. A comment's `anchor` says what it targets:
+   - `point` (`id`, maybe a `quote` the reviewer selected) or `step`: the scenario itself;
+   - `element`, `text`, `zone`: something on the app, at `url`. `element` gives `selector`, `tag`, `role` and `text` (search the code by the text first, the selector second); `text` adds the selected `quote`; `zone` is an area (`rect`). `capture` is a picture of it, relative to `<runDir>` (`captures/r1-k3.png`): read it with Read before you answer, it shows what the reviewer saw. `null` means no capture. `context` gives the console errors so far in the step and the last request.
+3. In the conversation, go through every comment: what you fix, what you answer (a question), what you decline and why, what you defer. Then every step with `logs` (errors and warnings) or `requests` (failed requests), even without a comment: say what failed and what you do about it. Discuss with the reviewer.
 4. Fix, then commit in the worktree. **Do not push.**
 5. Offer to run the review again. If the reviewer agrees, write the next round:
    - keep `commented` and `not_reached` steps;
@@ -188,7 +210,7 @@ Read the last line of its output.
 
 The reviewer checked every point of the round and left no comment.
 
-1. Summarize what you will push (the commits) and what was deferred during the review. Ask whether to push.
+1. Summarize what you will push (the commits) and what was deferred during the review. If the round reported `logs` errors or failed `requests`, list them first, say which ones come from the PR's code, and offer one more round if any does. Ask whether to push.
 2. On yes:
    - `git fetch`. If the remote branch moved, rebase your commits; on a conflict, stop and ask.
    - If the new remote commits change visible behavior, do not push yet: offer one more round limited to those steps. The relay is not running after `FINISH`: register the round, then start the relay in the background (step 6, without `open`); the page loads the round on its own.
