@@ -10,7 +10,7 @@
   <nav><b>Fernhill CRM</b><a>Dashboard</a><a class="on" href="./">Clients</a><a>Projects</a><a>Contacts</a><a>Invoices</a><a>Settings</a></nav>
   <main>
     <header><h1>Clients</h1><a class="button" href="new/">New client</a></header>
-    <div class="bar"><span class="field">Search clients…</span><span class="field">Status: All ▾</span></div>
+    <div class="bar"><span class="field">Search clients…</span><span class="field" id="status">Status: All ▾</span></div>
     <table>
       <tr><th>Name</th><th>VAT number</th><th>Status</th><th>Projects</th><th>Contacts</th></tr>
       <tr><td><a href="1/">Atelier Nord</a></td><td class="n">FR 40 123456789</td><td><span class="tag">Active</span></td><td class="n">4</td><td class="n">7</td></tr>
@@ -25,5 +25,12 @@
       <tr><td>Harbor Lane</td><td class="n">-</td><td><span class="tag">Active</span></td><td class="n">1</td><td class="n">3</td></tr>
     </table>
   </main>
+  <script>
+    // ?status=active shows the list as the PR's second round ships it.
+    if (new URLSearchParams(location.search).get('status') === 'active') {
+      document.getElementById('status').textContent = 'Status: Active ▾'
+      for (const tag of document.querySelectorAll('.tag.archived')) tag.closest('tr').remove()
+    }
+  </script>
 </body>
 </html>

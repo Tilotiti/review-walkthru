@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="compose.css">
+<style>
+  body { background: #fff; }
+  iframe { border: 0; width: 100%; height: 100%; display: block; }
+</style>
+</head>
+<body>
+  <iframe id="review" title="Review"></iframe>
+<script type="module">
+  // The review page alone. ?round=1|2, ?state=fresh|commented, ?frame=points starts the frame at the first point.
+  import { seedReview, settled } from './seed.mjs'
+  const q = new URLSearchParams(location.search)
+  const round = Number(q.get('round') ?? 1)
+  const review = document.getElementById('review')
+  // A taller page viewport pushes the page's sticky footer out of the frame.
+  if (q.get('frame') === 'points') review.style.height = `${innerHeight + 1200}px`
+  window.ready = (async () => {
+    await seedReview(round, q.get('state') ?? 'commented')
+    review.src = `/demo/?round=${round}`
+    const doc = await settled(review)
+    if (q.get('frame') === 'points') review.style.marginTop = `-${doc.querySelector('.pt').getBoundingClientRect().top - 12}px`
+  })()
+</script>
+</body>
+</html>

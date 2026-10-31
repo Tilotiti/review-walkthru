@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="compose.css">
+<style>
+  body { background: #dee1e6; }
+  .strip { height: 40px; display: flex; align-items: flex-end; padding: 0 10px; gap: 2px; }
+  .dots { display: flex; gap: 8px; margin: 0 14px 14px 4px; }
+  .dots i { width: 12px; height: 12px; border-radius: 50%; background: #c4c7cc; }
+  .tab { height: 32px; width: 240px; background: #fff; border-radius: 10px 10px 0 0; display: flex; align-items: center; gap: 8px; padding: 0 12px; font-size: 12.5px; color: #3c4043; }
+  .tab img, .tab b { width: 16px; height: 16px; border-radius: 4px; flex: none; }
+  .tab b { background: #17171c; }
+  .split { display: flex; gap: 8px; padding: 8px; height: calc(100% - 40px); background: #fff; }
+  .split iframe { border: 1px solid #e3e3e8; border-radius: 10px; height: 100%; background: #fff; }
+  #app { flex: 1.42; } #review { flex: 1; }
+</style>
+</head>
+<body>
+  <div class="strip"><div class="dots"><i></i><i></i><i></i></div>
+    <div class="tab"><b></b>Clients · Fernhill CRM</div><div class="tab"><img src="/demo/favicon.svg" alt="">Review · PR #128</div></div>
+  <div class="split"><iframe id="app" title="App"></iframe><iframe id="review" title="Review"></iframe></div>
+<script type="module">
+  // ?round=1|2 picks the round; ?state=fresh|commented sets what the reviewer has done.
+  import { seedReview, settled } from './seed.mjs'
+  const q = new URLSearchParams(location.search)
+  const round = Number(q.get('round') ?? 1)
+  const app = document.getElementById('app')
+  const review = document.getElementById('review')
+  // Round 2 ships the fix: the list starts on Active.
+  app.src = round === 2 ? '/demo/app/clients/?status=active' : '/demo/app/clients/'
+  window.ready = (async () => {
+    await seedReview(round, q.get('state') ?? 'commented')
+    review.src = `/demo/?round=${round}`
+    const doc = await settled(review)
+    // Round 2: show which steps were skipped, and why.
+    for (const details of doc.querySelectorAll('details')) if (details.querySelector('summary')?.textContent.includes('Skipped')) details.open = true
+  })()
+</script>
+</body>
+</html>

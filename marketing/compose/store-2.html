@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="compose.css">
+<style>.cols { display: grid; grid-template-columns: 1fr 1.25fr; gap: 48px; align-items: start; } ul { list-style: none; padding: 0; display: grid; gap: 22px; margin-top: 8px; } li { display: grid; grid-template-columns: 30px 1fr; gap: 12px; font-size: 21px; line-height: 1.4; } li span { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; color: #fff; font-size: 14px; font-weight: 700; margin-top: 2px; } .window img { width: 100%; }</style>
+</head>
+<body>
+<div class="shot">
+  <h1>Every decision Claude made, next to the screen that shows it.</h1>
+  <div class="cols">
+    <ul>
+      <li><span style="background:var(--blue)">1</span><div><b>What to check</b>, step by step, in the order you use the app.</div></li>
+      <li><span style="background:var(--ink)">D</span><div><b>The author's decisions</b>, each with what it would cost to change.</div></li>
+      <li><span style="background:var(--amber)">?</span><div><b>Claude's doubts</b>, flagged when it inferred them from the diff.</div></li>
+    </ul>
+    <div class="window"><img src="/img/points.png" alt=""></div>
+  </div>
+</div>
+</body></html>
