@@ -110,6 +110,17 @@ h1 { font-size: clamp(40px, 4.4vw, 54px); line-height: 1.0; font-weight: 600; le
 /* Sections */
 section.wrap { margin-top: 140px; }
 
+/* Film: a poster that becomes the YouTube player on click. */
+.film { margin: 32px 0 0; }
+.film-frame { aspect-ratio: 16 / 9; }
+.film-frame iframe { display: block; width: 100%; height: 100%; border: 0; }
+.film-play { position: relative; display: block; width: 100%; height: 100%; padding: 0; border: 0; background: none; cursor: pointer; }
+.film-play img { width: 100%; height: 100%; object-fit: cover; }
+.film-cue { position: absolute; left: 50%; bottom: 7%; transform: translateX(-50%); display: inline-flex; align-items: center; gap: 10px; padding: 14px 22px; border-radius: 10px; background: var(--blue); color: var(--blue-ink); font: 600 16px/1.2 Geist, sans-serif; white-space: nowrap; box-shadow: 0 16px 32px -16px rgb(23 23 28 / 0.45); transition: transform 160ms cubic-bezier(0.16, 1, 0.3, 1), box-shadow 160ms; }
+.film-cue svg { width: 16px; height: 16px; fill: currentColor; }
+.film-play:hover .film-cue { transform: translateX(-50%) translateY(-2px); box-shadow: 0 20px 36px -16px rgb(23 23 28 / 0.55); }
+.film-play:focus-visible { outline: 2px solid var(--blue); outline-offset: 3px; }
+
 /* Why: three pains and their answers, next to the product showing them */
 .pains { display: grid; grid-template-columns: 1fr 0.9fr; gap: 56px; align-items: center; margin-top: 48px; }
 .pains ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 30px; }
@@ -232,6 +243,7 @@ footer .grow { margin-right: auto; }
   .hero-text, .pains, .proof, .how, .install { grid-template-columns: 1fr; gap: 24px; }
   .hero-visual { margin-top: 36px; }
   .hero-term, .point-card { display: none; }
+  .film-cue { bottom: 6%; padding: 9px 14px; font-size: 14px; gap: 8px; }
   section.wrap { margin-top: 96px; }
   .rounds { grid-template-columns: 1fr; gap: 20px; }
   .rounds li { border-left: 0; border-top: 1px solid var(--line); padding: 16px 0 0; }
