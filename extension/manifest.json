@@ -1,0 +1,12 @@
+{
+  "manifest_version": 3,
+  "name": "Review Walkthru",
+  "version": "0.4.0",
+  "description": "Opens your app next to the Review Walkthru page in Chrome split view, so you can review a pull request step by step.",
+  "icons": { "16": "icons/icon-16.png", "32": "icons/icon-32.png", "48": "icons/icon-48.png", "128": "icons/icon-128.png" },
+  "minimum_chrome_version": "155",
+  "background": { "service_worker": "worker.js" },
+  "content_scripts": [
+    { "matches": ["http://127.0.0.1/*"], "js": ["content.js"], "run_at": "document_end" }
+  ]
+}

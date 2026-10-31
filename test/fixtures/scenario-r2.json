@@ -1,0 +1,46 @@
+{
+  "format": "review-walkthru/scenario@2",
+  "pr": { "repo": "acme/shop", "number": 12, "headSha": "5b19abf3c2d1e0f9a8b7c6d5e4f3a2b1c0d9e8f7" },
+  "round": 2,
+  "title": "Client CRUD",
+  "summary": "Adds the client list, creation and detail page, with an archived status.",
+  "app": { "baseUrl": "http://localhost:8000" },
+  "prerequisites": [
+    { "id": "admin", "kind": "account", "text": "Test admin account (credentials shown on the page)" }
+  ],
+  "steps": [
+    {
+      "id": "client-show",
+      "title": "Client page",
+      "path": "/clients/1",
+      "requires": ["admin"],
+      "page": "The page shows the client's name, VAT number, status and projects.",
+      "points": [
+        {
+          "id": "archive",
+          "title": "Archiving",
+          "do": "Archive the client, then cancel",
+          "decisions": [ { "id": "d1", "text": "Archiving now asks for a confirmation.", "cost": "One more click.", "source": "author" } ],
+          "doubts": []
+        },
+        {
+          "id": "details",
+          "title": "Client details",
+          "do": "The page shows the name, VAT number and status",
+          "decisions": [],
+          "doubts": [],
+          "alreadyValidated": true
+        }
+      ],
+      "next": null,
+      "start": "/clients/42",
+      "startLabel": "Bistro Test client page",
+      "reason": "You commented on archiving in round 1; it now asks for a confirmation."
+    }
+  ],
+  "skipped": [
+    { "stepId": "clients-list", "reason": "Validated in round 1, the fixes do not touch the list." },
+    { "stepId": "client-new", "reason": "Validated in round 1, the fixes do not touch creation." },
+    { "stepId": "migration-archived", "reason": "Validated in round 1, the migration is unchanged." }
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "name": "review-walkthru",
+  "owner": { "name": "Thibault Henry" },
+  "plugins": [
+    {
+      "name": "review-walkthru",
+      "source": "./",
+      "description": "Guided PR review in Chrome on the local app, with comments sent back to Claude."
+    }
+  ]
+}

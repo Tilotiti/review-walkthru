@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+  <title>Review Walkthru</title>
+  <g fill="#2156d9">
+    <rect x="36" y="32" width="112" height="192" rx="32"/>
+    <rect x="190" y="56" width="12" height="144"/>
+    <circle cx="196" cy="56" r="24"/><circle cx="196" cy="128" r="24"/><circle cx="196" cy="200" r="24"/>
+  </g>
+</svg>

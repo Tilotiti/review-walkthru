@@ -1,0 +1,10 @@
+{
+  "name": "review-walkthru",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=18" },
+  "scripts": {
+    "test": "node --test",
+    "pack:extension": "mkdir -p dist && rm -f dist/extension.zip && cd extension && zip -qrX ../dist/extension.zip . -x '.*'"
+  }
+}

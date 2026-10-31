@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Review Walkthru: guided pull request reviews in your running app</title>
+  <meta name="description" content="A Claude Code plugin that lays a pull request out as steps beside your locally running app. You check, comment, and Claude fixes what you flag.">
+  <meta property="og:title" content="Review Walkthru">
+  <meta property="og:description" content="Walk through a pull request in your running app, then let Claude fix what you flag.">
+  <meta property="og:image" content="https://review-walkthru.henry.pro/og.png">
+  <meta property="og:url" content="https://review-walkthru.henry.pro/">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="icon" href="favicon.ico" sizes="48x48">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <meta name="theme-color" content="#2156d9">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="wrap nav">
+    <a class="brand" href="./"><img src="logo.svg" alt="">Review Walkthru</a>
+    <a class="link" href="#how">How it works</a>
+    <a class="link" href="https://github.com/Tilotiti/review-walkthru">GitHub</a>
+    <a class="btn primary small" href="#install">Install</a>
+  </header>
+
+  <main>
+    <div class="wrap hero">
+      <h1>Walk through a pull request in your running app.</h1>
+      <p>Claude lays the PR out as steps beside your app. Check each point, comment, and send it back at once.</p>
+      <div class="ctas">
+        <a class="btn primary" href="#install">Install</a>
+        <a class="btn secondary" href="https://github.com/Tilotiti/review-walkthru">
+          <picture><source srcset="https://cdn.simpleicons.org/github/ececf1" media="(prefers-color-scheme: dark)"><img src="https://cdn.simpleicons.org/github/17171c" alt="" width="18" height="18"></picture>
+          View on GitHub
+        </a>
+      </div>
+      <img class="shot" src="screenshot.png" width="2560" height="1600" alt="Chrome split view: a client list app on the left, the Review Walkthru page on the right with one point validated and one commented.">
+    </div>
+
+    <section id="how" class="wrap">
+      <div class="flow">
+        <div class="intro">
+          <h2>One review, start to push</h2>
+          <p class="lead">You stay in Claude Code for the talking and in Chrome for the looking.</p>
+        </div>
+        <ol class="steps">
+          <li>
+            <h3>Run <code>/review-walkthru 123</code></h3>
+            <p>Claude reads the PR, its commits and the conversation that built it. It starts the app, creates the test accounts, and writes the scenario.</p>
+          </li>
+          <li>
+            <h3>Walk through</h3>
+            <p>Chrome opens the review page next to the app, in split view. Each step says what to do and which decisions sit behind it.</p>
+          </li>
+          <li>
+            <h3>Send</h3>
+            <p>Check a point to validate it or comment on it. One click sends the whole review to Claude Code.</p>
+          </li>
+          <li>
+            <h3>Fix and repeat</h3>
+            <p>Claude fixes in the conversation and offers a round with only the steps to recheck. Once a round passes without comments, it pushes, after you say yes.</p>
+          </li>
+        </ol>
+      </div>
+    </section>
+
+    <section class="wrap">
+      <h2>Built for the reviewer</h2>
+      <div class="bento">
+        <div class="panel big">
+          <div>
+            <h3>Decisions next to the screen that shows them</h3>
+            <p>Each point carries the author's decisions and Claude's doubts, with what a change would cost.</p>
+          </div>
+          <img src="points.png" width="1040" height="760" alt="Two review points: Sorting, validated, with its decision; Status filter, with a doubt inferred from the diff and the reviewer's comment.">
+        </div>
+        <div class="panel tint">
+          <h3>The next round skips what you validated</h3>
+          <p>Claude keeps the commented steps and the ones its fixes touch. Each skipped step comes with a reason.</p>
+        </div>
+        <div class="panel">
+          <h3>Your machine, your call</h3>
+          <p>A local relay serves the page. Claude writes nothing on GitHub: no PR comment, no description edit. It pushes only when you approve.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="install" class="wrap">
+      <h2>Install</h2>
+      <p class="lead">Two minutes, once per machine.</p>
+      <div class="install">
+        <div class="panel">
+          <h3>1. Add the plugin in Claude Code</h3>
+          <pre class="code"><button class="copy" type="button">Copy</button><code>/plugin marketplace add Tilotiti/review-walkthru
+/plugin install review-walkthru@review-walkthru</code></pre>
+          <ul class="reqs">
+            <li>macOS or Linux</li>
+            <li>Node.js 18 or later</li>
+            <li>GitHub CLI signed in, with write access to the repo</li>
+          </ul>
+        </div>
+        <div class="panel">
+          <h3>2. Add the Chrome extension</h3>
+          <p>It opens your app next to the review page, in split view. It needs Chrome 155 or later.</p>
+          <a class="btn primary" href="https://chromewebstore.google.com/detail/kjigknfmabifbopeelbckkilheemoedh">
+            <picture><source srcset="https://cdn.simpleicons.org/googlechrome/0d0f13" media="(prefers-color-scheme: dark)"><img src="https://cdn.simpleicons.org/googlechrome/ffffff" alt="" width="18" height="18"></picture>
+            Add to Chrome
+          </a>
+          <h3>3. Review a PR</h3>
+          <pre class="code"><button class="copy" type="button">Copy</button><code>/review-walkthru 123</code></pre>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap">
+      <span class="grow">Review Walkthru, by Thibault Henry. MIT license.</span>
+      <a href="https://github.com/Tilotiti/review-walkthru">GitHub</a>
+      <a href="https://github.com/Tilotiti/review-walkthru/issues">Issues</a>
+      <a href="privacy.html">Privacy</a>
+    </div>
+  </footer>
+
+  <script>
+    for (const button of document.querySelectorAll('.copy')) {
+      button.addEventListener('click', async () => {
+        await navigator.clipboard.writeText(button.nextElementSibling.textContent)
+        button.textContent = 'Copied'
+        setTimeout(() => { button.textContent = 'Copy' }, 1500)
+      })
+    }
+  </script>
+</body>
+</html>

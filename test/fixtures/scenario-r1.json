@@ -1,0 +1,120 @@
+{
+  "format": "review-walkthru/scenario@2",
+  "pr": { "repo": "acme/shop", "number": 12, "headSha": "5b19abf3c2d1e0f9a8b7c6d5e4f3a2b1c0d9e8f7" },
+  "round": 1,
+  "title": "Client CRUD",
+  "summary": "Adds the client list, creation and detail page, with an archived status.",
+  "app": { "baseUrl": "http://localhost:8000" },
+  "prerequisites": [
+    { "id": "admin", "kind": "account", "text": "Test admin account (credentials shown on the page)" }
+  ],
+  "steps": [
+    {
+      "id": "clients-list",
+      "title": "Client list",
+      "path": "/clients",
+      "requires": ["admin"],
+      "page": "Clients sorted by name. Each row shows its project and contact counts.",
+      "points": [
+        {
+          "id": "sort",
+          "title": "Sorting",
+          "do": "Clients are sorted by name.",
+          "decisions": [ { "id": "d1", "text": "Sorted by name only, no per-column sorting.", "cost": "Column sorting would have to be added.", "source": "author" } ],
+          "doubts": []
+        },
+        {
+          "id": "filter",
+          "title": "Status filter",
+          "do": "Filter by status",
+          "decisions": [],
+          "doubts": [ { "id": "q1", "text": "Archived clients stay visible by default.", "source": "inferred" } ]
+        },
+        {
+          "id": "search",
+          "title": "Search",
+          "do": "Search for \"Bist\", then run a search with no result",
+          "decisions": [],
+          "doubts": []
+        }
+      ],
+      "prefill": [],
+      "next": { "stepId": "client-new", "instruction": "Click \"New client\"", "detect": { "urlMatches": "^/clients/new$" } },
+      "start": null,
+      "reason": null
+    },
+    {
+      "id": "client-new",
+      "title": "Create a client",
+      "path": "/clients/new",
+      "requires": ["admin"],
+      "page": "The creation form: name, VAT number, status.",
+      "points": [
+        {
+          "id": "create",
+          "title": "Creation",
+          "do": "Create \"Bistro Test\" with a VAT number",
+          "decisions": [ { "id": "d1", "text": "The VAT number is optional.", "cost": "A constraint would have to be added.", "source": "inferred" } ],
+          "doubts": []
+        },
+        {
+          "id": "empty-name",
+          "title": "Required name",
+          "do": "Submit without a name",
+          "decisions": [],
+          "doubts": []
+        }
+      ],
+      "prefill": [ { "selector": "input[name=name]", "value": "Bistro Test" } ],
+      "next": { "stepId": "client-show", "instruction": "Submit the form" },
+      "start": null,
+      "reason": null
+    },
+    {
+      "id": "client-show",
+      "title": "Client page",
+      "path": "/clients/1",
+      "requires": ["admin"],
+      "page": "The page shows the client's name, VAT number, status and projects.",
+      "points": [
+        {
+          "id": "archive",
+          "title": "Archiving",
+          "do": "Archive the client",
+          "decisions": [],
+          "doubts": [ { "id": "q1", "text": "Archiving asks for no confirmation.", "source": "inferred" } ]
+        }
+      ],
+      "next": { "stepId": "migration-archived", "instruction": "Move on to checking the migration" },
+      "start": null,
+      "reason": null
+    },
+    {
+      "id": "migration-archived",
+      "title": "Archived status migration",
+      "path": null,
+      "requires": [],
+      "page": "The migration adds the archived_at column, null for existing clients.",
+      "points": [
+        {
+          "id": "existing",
+          "title": "Existing clients",
+          "do": "Existing clients stay active after the migration",
+          "decisions": [],
+          "doubts": []
+        },
+        {
+          "id": "nullable",
+          "title": "Null by default",
+          "do": null,
+          "decisions": [ { "id": "d1", "text": "archived_at stays null for existing clients.", "source": "author" } ],
+          "doubts": []
+        }
+      ],
+      "next": null,
+      "start": null,
+      "reason": null
+    }
+  ],
+  "skipped": []
+}
