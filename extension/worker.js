@@ -3,6 +3,7 @@
 // pairs.js, so the worker can sleep and wake up without forgetting them.
 import { HOSTS, originPattern } from './hosts.js'
 import { getPairs, setPair, appOf, reviewOf, forgetTab } from './pairs.js'
+import { captureCrop } from './capture.js'
 
 const httpUrl = value => {
   try {
@@ -184,6 +185,11 @@ chrome.runtime.onMessage.addListener((message, sender, reply) => {
       return true
     case 'rw:app-hello':
       appHello(tab, message.url).then(reply)
+      return true
+    case 'rw:capture':
+      reviewOf(tab.id)
+        .then(review => review === null ? { ok: false, error: 'not an app tab' } : captureCrop(tab.windowId, tab.id, message.rect, message.viewport, message.dpr))
+        .then(reply)
       return true
     case 'rw:to-app': toApp(tab.id, message.message); return
     case 'rw:to-page': fromApp(tab.id, message.message); return

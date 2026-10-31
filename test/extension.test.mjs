@@ -282,3 +282,9 @@ test('originPattern drops the port and keeps the scheme; the default hosts cover
   assert.equal(originPattern('https://shop.localhost/x?y'), 'https://shop.localhost/*')
   assert.equal(HOSTS.length, 6)
 })
+
+test('a capture is asked for an app tab only', async () => {
+  await setPair(5, 99)
+  const reply = await send({ type: 'rw:capture', rect: { x: 0, y: 0, width: 1, height: 1 }, viewport: { width: 10, height: 10 }, dpr: 1 }, { tab: { id: 42, windowId: 1 } })
+  assert.deepEqual(reply, { ok: false, error: 'not an app tab' })
+})
