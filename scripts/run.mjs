@@ -8,7 +8,7 @@ import { execFile, spawn } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
-import { join, delimiter } from 'node:path'
+import { join, delimiter, sep, win32 } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { promisify } from 'node:util'
 import { startUrl } from '../page/review.mjs'
@@ -17,8 +17,8 @@ import { runDir, projectFile, initRun, readState, writeState, addRound, pageUrl,
 export { startUrl }
 
 const LINUX_CHROMES = ['google-chrome', 'google-chrome-stable', 'chromium', 'chromium-browser']
-
-
+// Chrome's install folders on Windows: for all users (64 and 32 bits), then per user.
+const WINDOWS_DIRS = ['ProgramFiles', 'ProgramFiles(x86)', 'LOCALAPPDATA']
 
 export function findOnPath (names, pathEnv) {
   const dirs = pathEnv.split(delimiter).filter(Boolean)
@@ -28,13 +28,27 @@ export function findOnPath (names, pathEnv) {
   return null
 }
 
-export function chromeCommand (platform, urls, findExecutable = names => findOnPath(names, process.env.PATH ?? '')) {
+// process.env ignores case on Windows, so ProgramFiles also finds PROGRAMFILES.
+export function findChrome (platform, env = process.env, exists = existsSync) {
+  if (platform === 'darwin') return ['/Applications', join(homedir(), 'Applications')].map(dir => join(dir, 'Google Chrome.app')).find(exists) ?? null
+  if (platform === 'win32') {
+    return WINDOWS_DIRS.filter(name => env[name]).map(name => win32.join(env[name], 'Google', 'Chrome', 'Application', 'chrome.exe')).find(exists) ?? null
+  }
+  return findOnPath(LINUX_CHROMES, env.PATH ?? '')
+}
+
+export function chromeCommand (platform, urls, chrome = findChrome(platform)) {
   if (platform === 'darwin') return { cmd: 'open', args: ['-na', 'Google Chrome', '--args', '--new-window', ...urls] }
-  if (platform === 'win32') throw new Error('Windows arrives with MVP 2')
-  const chrome = findExecutable(LINUX_CHROMES)
-  if (!chrome) throw new Error(`Chrome not found on PATH (looked for ${LINUX_CHROMES.join(', ')})`)
+  if (!chrome) {
+    throw new Error(platform === 'win32'
+      ? `Chrome not found in ${WINDOWS_DIRS.map(name => `%${name}%`).join(', ')}`
+      : `Chrome not found on PATH (looked for ${LINUX_CHROMES.join(', ')})`)
+  }
   return { cmd: chrome, args: ['--new-window', ...urls] }
 }
+
+// Claude copies these paths into Git Bash or PowerShell commands: both take forward slashes.
+const slashes = path => path.split(sep).join('/')
 
 const run = promisify(execFile)
 
@@ -43,11 +57,7 @@ async function check () {
   if (Number(process.versions.node.split('.')[0]) < 18) missing.push(`Node.js 18 or later (found ${process.versions.node})`)
   try { await run('gh', ['--version']) } catch { missing.push('gh, the GitHub CLI (https://cli.github.com)') }
   try { await run('gh', ['auth', 'status']) } catch { missing.push('a signed-in gh (run: gh auth login)') }
-  const hasChrome = process.platform === 'darwin'
-    ? ['/Applications', join(homedir(), 'Applications')].some(dir => existsSync(join(dir, 'Google Chrome.app')))
-    : process.platform !== 'win32' && findOnPath(LINUX_CHROMES, process.env.PATH ?? '') !== null
-  if (!hasChrome) missing.push('Google Chrome')
-  if (process.platform === 'win32') missing.push('macOS or Linux (Windows arrives with MVP 2)')
+  if (!findChrome(process.platform)) missing.push('Google Chrome')
   return { ok: missing.length === 0, missing }
 }
 
@@ -75,7 +85,7 @@ async function main ([command, ...args]) {
       if (!data || !owner || !repo || !Number.isInteger(number)) throw new Error('usage: run.mjs init --data <dir> --repo <owner/name> --number <n> [--restart]')
       const dir = runDir(data, { owner, repo, number })
       const { state, resumed } = await initRun(dir, { restart: args.includes('--restart') })
-      return { runDir: dir, projectFile: projectFile(data, { owner, repo }), worktree: join(dir, 'worktree'), pageUrl: pageUrl(state), round: state.round, resumed }
+      return { runDir: slashes(dir), projectFile: slashes(projectFile(data, { owner, repo })), worktree: slashes(join(dir, 'worktree')), pageUrl: pageUrl(state), round: state.round, resumed }
     }
     case 'round': return { round: await addRound(args[0], JSON.parse(await readFile(args[1], 'utf8')), { replace: args.includes('--replace') }) }
     case 'port': {

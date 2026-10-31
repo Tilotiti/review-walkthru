@@ -82,7 +82,12 @@ async function acceptReview (req, res) {
 
   closing = true
   const file = join(dir, `review-${round.round}.json`)
-  await writeJson(file, review)
+  try {
+    await writeJson(file, review)
+  } catch (error) {
+    closing = false // nothing was written: the page may send again
+    throw error
+  }
   const finish = isFinish(review)
   // The review is on disk: the session must wake up even if the tab went away
   // before the answer. Announce once the answer is out, or after 1 s at most.
@@ -120,9 +125,11 @@ const server = createServer((req, res) => {
   })
 })
 
+// EACCES: on Windows, Hyper-V and WSL reserve port ranges at boot, which can take the
+// port this review kept from an earlier session.
 server.on('error', error => {
-  if (error.code !== 'EADDRINUSE') throw error
-  process.stderr.write(`ERROR port ${state.port} already in use\n`)
+  if (!['EADDRINUSE', 'EACCES'].includes(error.code)) throw error
+  process.stderr.write(`ERROR port ${state.port} unavailable (${error.code})\n`)
   process.exit(2)
 })
 

@@ -100,7 +100,7 @@ Node.js scripts from the plugin folder: a relay on `127.0.0.1`, behind a random 
 <details>
 <summary><b>Does it run on Windows?</b></summary>
 
-Not yet. macOS and Linux today.
+Not yet: macOS and Linux today. Windows support is in testing: the plugin's scripts pass their tests on Windows, and a first full review on a Windows machine comes next.
 </details>
 
 ## Develop

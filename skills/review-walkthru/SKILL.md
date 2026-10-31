@@ -7,6 +7,10 @@ allowed-tools:
   - Bash(node "${CLAUDE_PLUGIN_ROOT}/scripts/relay.mjs" *)
   - Bash(gh pr view *)
   - Bash(gh pr diff *)
+  - PowerShell(node "${CLAUDE_PLUGIN_ROOT}/scripts/run.mjs" *)
+  - PowerShell(node "${CLAUDE_PLUGIN_ROOT}/scripts/relay.mjs" *)
+  - PowerShell(gh pr view *)
+  - PowerShell(gh pr diff *)
 ---
 
 # review-walkthru
@@ -15,7 +19,7 @@ You turn a pull request into a guided review of the app running on the reviewer'
 
 Arguments: `$ARGUMENTS`. They may name the PR (URL, `owner/repo#123` or number). Without one, take the last PR created in this conversation (the URL `gh pr create` printed) and tell the reviewer which one you picked. If this conversation created none, ask the reviewer which PR to review. `--restart` starts the review over from the PR head.
 
-Scripts live in `${CLAUDE_PLUGIN_ROOT}/scripts`. Run them exactly as written below, quotes included: the quotes keep a path with spaces in one piece, and the permission rules expect that exact form. Your data lives in `${CLAUDE_PLUGIN_DATA}`; scripts do not see that variable, so always pass it with `--data`.
+Scripts live in `${CLAUDE_PLUGIN_ROOT}/scripts`. Run them exactly as written below, quotes included: the quotes keep a path with spaces in one piece, and the permission rules expect that exact form. Quote the paths you fill in too (`"<runDir>"`): Windows user folders often contain a space. The commands work the same in Bash and PowerShell. Your data lives in `${CLAUDE_PLUGIN_DATA}`; scripts do not see that variable, so always pass it with `--data`.
 
 ## Language
 
@@ -67,7 +71,7 @@ It returns `runDir`, `projectFile`, `worktree`, `pageUrl`, `round` and `resumed`
 Write a `review-walkthru/scenario@2` document to `<runDir>/draft.json`, then register it:
 
 ```
-node "${CLAUDE_PLUGIN_ROOT}/scripts/run.mjs" round <runDir> <runDir>/draft.json
+node "${CLAUDE_PLUGIN_ROOT}/scripts/run.mjs" round "<runDir>" "<runDir>/draft.json"
 ```
 
 It refuses an invalid scenario and says why: fix the draft and run it again until it passes. To fix a round you already registered, before its review arrives, run the same command with `--replace`. Never edit the work folder's files by hand.
@@ -135,7 +139,7 @@ Then:
 1. Pick where the PR's code lives:
    - the session's folder, if it is already on the PR head;
    - otherwise `<worktree>`, if it exists already (a resumed review);
-   - otherwise create it: `git worktree add --detach <worktree>`, then `gh pr checkout <n>` inside it. If git refuses because the PR branch is checked out in another worktree (often the session that built the PR), tell the reviewer where, and ask whether to run the review in that worktree instead.
+   - otherwise create it: `git worktree add --detach "<worktree>"`, then `gh pr checkout <n>` inside it. If git refuses because the PR branch is checked out in another worktree (often the session that built the PR), tell the reviewer where, and ask whether to run the review in that worktree instead.
 2. Untracked files (`.env`, local config) do not exist in a fresh worktree. Say so and ask what to do.
 3. Start the app as agreed, with long-running servers in the background.
 4. Create the test accounts and write them to `<runDir>/credentials.json`: `[{ "prerequisiteId": "admin", "login": "…", "password": "…", "note": "optional" }]`.
@@ -150,11 +154,11 @@ If what the project file says no longer works, say so and ask again. Do not retr
 Start the relay **in the background** (`run_in_background: true`), then open Chrome:
 
 ```
-node "${CLAUDE_PLUGIN_ROOT}/scripts/relay.mjs" <runDir>
-node "${CLAUDE_PLUGIN_ROOT}/scripts/run.mjs" open <runDir>
+node "${CLAUDE_PLUGIN_ROOT}/scripts/relay.mjs" "<runDir>"
+node "${CLAUDE_PLUGIN_ROOT}/scripts/run.mjs" open "<runDir>"
 ```
 
-If `open` fails, read the relay's output. On `ERROR port … already in use`: run `node "${CLAUDE_PLUGIN_ROOT}/scripts/run.mjs" port <runDir>`, start the relay again, then `open` again (the reviewer gets a new tab).
+If `open` fails, read the relay's output. On `ERROR port … unavailable`: run `node "${CLAUDE_PLUGIN_ROOT}/scripts/run.mjs" port "<runDir>"`, start the relay again, then `open` again (the reviewer gets a new tab).
 
 `open` shows only the review page, in a **new Chrome window** that may open behind this app: say so. With the Review Walkthru extension installed (Chrome 155 or later), the app opens on its own to the left of the page, in split view. Without it, the page offers "Open the app alongside". If the reviewer has not installed the extension, tell them once that it lives on the Chrome Web Store: https://chromewebstore.google.com/detail/kjigknfmabifbopeelbckkilheemoedh
 
