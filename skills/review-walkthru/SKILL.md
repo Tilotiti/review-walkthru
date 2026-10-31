@@ -194,9 +194,13 @@ Read the last line of its output.
 2. Read the review (`review-walkthru/review@2`): each step has a `status` (`validated`, `commented`, `not_reached`), the status of each of its `points` (`validated`, `commented`, `not_seen`), its `comments`, and what the app's console and network reported during the step (`logs`, `requests`). A point the reviewer neither checked nor commented is `not_seen`: it comes back next round. A comment's `anchor` says what it targets:
    - `point` (`id`, maybe a `quote` the reviewer selected) or `step`: the scenario itself;
    - `element`, `text`, `zone`: something on the app, at `url`. `element` gives `selector`, `tag`, `role` and `text` (search the code by the text first, the selector second); `text` adds the selected `quote`; `zone` is an area (`rect`). `capture` is a picture of it, relative to `<runDir>` (`captures/r1-k3.png`): read it with Read before you answer, it shows what the reviewer saw. `null` means no capture. `context` gives the console errors so far in the step and the last request.
-3. In the conversation, go through every comment: what you fix, what you answer (a question), what you decline and why, what you defer. Then every step with `logs` (errors and warnings) or `requests` (failed requests), even without a comment: say what failed and what you do about it. Discuss with the reviewer.
-4. Fix, then commit in the worktree. **Do not push.**
-5. Offer to run the review again. If the reviewer agrees, write the next round:
+3. In the conversation, go through every comment: what you fix, what you answer (a question), what you decline and why, what you defer. Discuss with the reviewer.
+4. **Report the app's console and network**, in a part of your answer of its own, every time, even when no comment mentions them. Read `logs` and `requests` of every step:
+   - **Errors** (`logs` with `"level": "error"`) and **failed requests** (`requests`): list each one once (group repeats), with its step and URL. Say where it comes from: the PR's code (find it), or code that predates the PR. One the PR caused is a bug to fix in this round, like a comment, unless the reviewer says no. For one that predates the PR, ask whether to fix it here or later.
+   - **Warnings** (`"level": "warning"`): give their count and each distinct message on one line. Offer nothing, unless one comes from the PR's code.
+   - Nothing in any step: say "No console error or failed request" in one line, so the reviewer knows you looked.
+5. Fix, then commit in the worktree. **Do not push.**
+6. Offer to run the review again. If the reviewer agrees, write the next round:
    - keep `commented` and `not_reached` steps;
    - keep a `validated` step if your changes touch its code;
    - add steps for new visible behavior;
@@ -204,17 +208,18 @@ Read the last line of its output.
    - give every kept step a `reason`;
    - inside a kept step, set `"alreadyValidated": true` on each point the reviewer validated that your changes do not touch: it arrives checked, with "validated in round N", and the reviewer only goes through the others;
    - set each step's `start`: if the data the previous round created still exists and your changes do not touch the step that created it, start there (`"/clients/42"` with its `startLabel`, and say so in `reason`). Otherwise ask the reviewer, or read `betweenRounds` in the project file, whether to start over from the first step or to create the data.
-6. Register it with `run.mjs round`. The running relay serves it and the page loads it on its own: do not open Chrome again.
+7. Register it with `run.mjs round`. The running relay serves it and the page loads it on its own: do not open Chrome again.
 
 ### `FINISH <file>`
 
 The reviewer checked every point of the round and left no comment.
 
-1. Summarize what you will push (the commits) and what was deferred during the review. If the round reported `logs` errors or failed `requests`, list them first, say which ones come from the PR's code, and offer one more round if any does. Ask whether to push.
-2. On yes:
+1. Report the app's console and network as in `REVIEW` step 4: errors and failed requests first, with where each comes from; warnings counted. If one comes from the PR's code, offer to fix it and run one more round before pushing.
+2. Summarize what you will push (the commits) and what was deferred during the review. Ask whether to push.
+3. On yes:
    - `git fetch`. If the remote branch moved, rebase your commits; on a conflict, stop and ask.
    - If the new remote commits change visible behavior, do not push yet: offer one more round limited to those steps. The relay is not running after `FINISH`: register the round, then start the relay in the background (step 6, without `open`); the page loads the round on its own.
    - Otherwise `git push` (the permission prompt is expected).
-3. Give the list of pushed commits.
+4. Give the list of pushed commits.
 
 The reviewer can stop at any time without pushing. Your fixes stay in the worktree.
