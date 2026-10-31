@@ -43,10 +43,13 @@ test('findChrome on Windows checks the install folders in order', () => {
   assert.equal(findChrome('win32', {}, () => true), null)
 })
 
-test('check accepts every platform, and finds Chrome on CI runners', async () => {
+test('check accepts every platform, and finds gh and Chrome on CI runners', async () => {
   const { missing } = await runCli('check')
   assert.ok(!missing.some(item => /macOS|Linux|Windows/.test(item)), missing.join(', '))
-  if (process.env.CI) assert.ok(!missing.includes('Google Chrome'), 'the CI image ships Chrome')
+  if (process.env.CI) { // the runner images ship both
+    assert.ok(!missing.includes('Google Chrome'), missing.join(', '))
+    assert.ok(!missing.some(item => item.startsWith('gh,')), missing.join(', '))
+  }
 })
 
 // Claude pastes these paths into shell commands: forward slashes survive Git Bash and PowerShell.
