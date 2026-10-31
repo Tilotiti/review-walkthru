@@ -94,3 +94,31 @@ test('buildSite assembles the demo next to the real page code', async () => {
     assert.ok(existsSync(join(out, file)), file)
   }
 })
+
+const { summarizeReview, appTarget } = await import('../site/demo/shim.mjs')
+
+test('summarizeReview tells a finished review from one with comments', () => {
+  assert.match(summarizeReview(allValidated, isFinish), /push/)
+  assert.doesNotMatch(summarizeReview(allValidated, isFinish), /next round/)
+  const commented = structuredClone(allValidated)
+  commented.steps[0].status = 'commented'
+  commented.steps[0].points.filter = 'commented'
+  commented.steps[0].comments = [{ id: 'r1-k1', text: 'Hide archived clients', anchor: { kind: 'point', id: 'filter' } }]
+  assert.match(summarizeReview(commented, isFinish), /1 comment.*next round/)
+})
+
+test('appTarget opens the mock page in the pane, or in a tab when the pane is hidden', () => {
+  const root = 'https://review-walkthru.henry.pro/demo/'
+  assert.deepEqual(appTarget('http://localhost:8000/clients/42', root, true), { href: `${root}app/clients/42/`, newTab: false })
+  assert.deepEqual(appTarget('http://localhost:8000/clients/42', root, false), { href: `${root}app/clients/42/`, newTab: true })
+})
+
+test('step 3 opens the client that step 2 creates', () => {
+  assert.equal(round1.steps.find(step => step.id === 'client-archive').path, '/clients/42')
+  assert.equal(round2.steps.find(step => step.id === 'client-archive').path, '/clients/42')
+})
+
+test('the mock app table fits the narrow demo pane', () => {
+  assert.match(readFileSync(new URL('../site/demo/app/app.css', import.meta.url), 'utf8'), /@media \(max-width: \d+px\) \{[^@]*\.wide-only \{ display: none/)
+  assert.match(readFileSync(new URL('../site/demo/app/clients/index.html', import.meta.url), 'utf8'), /<th class="wide-only">Contacts<\/th>/)
+})

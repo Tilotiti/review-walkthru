@@ -32,3 +32,27 @@ test('the rail has a point for each section', () => {
     assert.match(index, new RegExp(`data-point="${id}"`), `rail point ${id}`)
   }
 })
+
+test('without JavaScript the live demo hides and points to the install', () => {
+  assert.match(read('site/style.css'), /@media \(scripting: none\) \{[^}]*\.panes/)
+  assert.match(index.match(/<noscript>[\s\S]*?<\/noscript>/)[0], /href="#install"/)
+})
+
+test('the Chrome button says the extension is pending review', () => {
+  const button = index.match(/<a[^>]*chromewebstore[^>]*>([\s\S]*?)<\/a>/)[1]
+  assert.match(button, /pending review/i)
+  assert.match(read('README.md'), /chromewebstore[^)]*\)?[^\n]*pending/i)
+})
+
+test('How steps that are not current keep their text readable', () => {
+  assert.doesNotMatch(read('site/style.css'), /\.steps li \{[^}]*opacity: 0\.[0-6]/)
+})
+
+test('the illustrative terminal in the hero is labeled for everyone', () => {
+  assert.match(index, /class="term hero-term" role="img" aria-label="[^"]*illustrative/)
+  assert.match(index, /<figcaption[^>]*>[^<]*illustrative/i)
+})
+
+test('the README header is centered', () => {
+  assert.match(read('README.md'), /^<div align="center">/)
+})

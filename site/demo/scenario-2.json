@@ -1,26 +1,45 @@
 {
   "format": "review-walkthru/scenario@2",
-  "pr": { "repo": "fernhill/crm", "number": 128, "headSha": "3f9e2a1b0c8d7e6f5a4b3c2d1e0f9a8b7c6d5e4f" },
+  "pr": {
+    "repo": "fernhill/crm",
+    "number": 128,
+    "headSha": "3f9e2a1b0c8d7e6f5a4b3c2d1e0f9a8b7c6d5e4f"
+  },
   "round": 2,
   "title": "Archive clients instead of deleting them",
   "summary": "Round 2 after your comments: archived clients are hidden by default, and archiving asks for a confirmation.",
-  "app": { "baseUrl": "http://localhost:8000" },
+  "app": {
+    "baseUrl": "http://localhost:8000"
+  },
   "prerequisites": [
-    { "id": "admin", "kind": "account", "text": "Test admin account (credentials shown on this page)" }
+    {
+      "id": "admin",
+      "kind": "account",
+      "text": "Test admin account (credentials shown on this page)"
+    }
   ],
   "steps": [
     {
       "id": "clients-list",
       "title": "Client list",
       "path": "/clients",
-      "requires": ["admin"],
+      "requires": [
+        "admin"
+      ],
       "page": "The list hides archived clients until you pick Archived or All in the status filter.",
       "points": [
         {
           "id": "sort",
           "title": "Sorting",
           "do": "Clients are sorted by name.",
-          "decisions": [ { "id": "d1", "text": "Sorted by name only, no per-column sorting.", "cost": "Column sorting would have to be added.", "source": "author" } ],
+          "decisions": [
+            {
+              "id": "d1",
+              "text": "Sorted by name only, no per-column sorting.",
+              "cost": "Column sorting would have to be added.",
+              "source": "author"
+            }
+          ],
           "doubts": [],
           "alreadyValidated": true
         },
@@ -28,7 +47,14 @@
           "id": "filter",
           "title": "Status filter",
           "do": "Open the list: archived clients are hidden. Pick Archived to see them.",
-          "decisions": [ { "id": "d1", "text": "The filter starts on Active.", "cost": "One default to change.", "source": "author" } ],
+          "decisions": [
+            {
+              "id": "d1",
+              "text": "The filter starts on Active.",
+              "cost": "One default to change.",
+              "source": "author"
+            }
+          ],
           "doubts": []
         },
         {
@@ -40,41 +66,65 @@
           "alreadyValidated": true
         }
       ],
-      "next": { "stepId": "client-archive", "instruction": "Open Bistro Test" },
+      "next": {
+        "stepId": "client-archive",
+        "instruction": "Open Bistro Test"
+      },
       "start": null,
       "reason": "You commented on the status filter in round 1: it now starts on Active."
     },
     {
       "id": "client-archive",
       "title": "Archive and restore",
-      "path": "/clients/1",
-      "requires": ["admin"],
+      "path": "/clients/42",
+      "requires": [
+        "admin"
+      ],
       "page": "Archiving now opens a confirmation before it applies.",
       "points": [
         {
           "id": "archive",
           "title": "Archiving",
           "do": "Archive Bistro Test, cancel once, then confirm.",
-          "decisions": [ { "id": "d1", "text": "Archiving asks for a confirmation.", "cost": "One more click.", "source": "author" } ],
+          "decisions": [
+            {
+              "id": "d1",
+              "text": "Archiving asks for a confirmation.",
+              "cost": "One more click.",
+              "source": "author"
+            }
+          ],
           "doubts": []
         },
         {
           "id": "restore",
           "title": "Restoring",
           "do": "Restore the archived client from its page.",
-          "decisions": [ { "id": "d1", "text": "Only admins can restore a client.", "cost": "A new permission for managers.", "source": "author" } ],
+          "decisions": [
+            {
+              "id": "d1",
+              "text": "Only admins can restore a client.",
+              "cost": "A new permission for managers.",
+              "source": "author"
+            }
+          ],
           "doubts": [],
           "alreadyValidated": true
         }
       ],
       "next": null,
-      "start": "/clients/42",
-      "startLabel": "Bistro Test client page",
+      "start": null,
       "reason": "You commented on archiving in round 1: it now asks for a confirmation. Bistro Test, created in round 1, still exists."
     }
   ],
   "skipped": [
-    { "stepId": "client-new", "reason": "Validated in round 1, and the fixes do not touch creation." },
-    { "stepId": "migration-archived", "reason": "Validated in round 1, and the migration did not change." }
+    {
+      "stepId": "client-new",
+      "reason": "Validated in round 1, and the fixes do not touch creation."
+    },
+    {
+      "stepId": "migration-archived",
+      "reason": "Validated in round 1, and the migration did not change."
+    }
   ]
 }

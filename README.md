@@ -1,25 +1,25 @@
-<p align="center">
+<div align="center">
 
 ![Review Walkthru logo](brand/logo.svg)
 
-</p>
+<h1>Review Walkthru</h1>
 
-<h1 align="center">Review Walkthru</h1>
-
-<p align="center"><b>Don't merge what you haven't seen.</b><br>
+<p><b>Don't merge what you haven't seen.</b><br>
 A Claude Code plugin that turns a pull request into a real acceptance test: every screen, every decision Claude made, checked in your running app.</p>
 
-<p align="center">
+<p>
   <a href="https://github.com/Tilotiti/review-walkthru/actions/workflows/test.yml"><img src="https://github.com/Tilotiti/review-walkthru/actions/workflows/test.yml/badge.svg" alt="Tests"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-17171c" alt="MIT license"></a>
   <img src="https://img.shields.io/badge/Claude%20Code-plugin-2156d9" alt="Claude Code plugin">
 </p>
 
-<p align="center">
+<p>
   <a href="https://review-walkthru.henry.pro"><b>Website</b></a> ·
   <a href="https://review-walkthru.henry.pro/#try"><b>Try the live demo</b></a> ·
-  <a href="https://chromewebstore.google.com/detail/kjigknfmabifbopeelbckkilheemoedh">Chrome extension</a>
+  <a href="https://chromewebstore.google.com/detail/kjigknfmabifbopeelbckkilheemoedh">Chrome extension (pending review)</a>
 </p>
+
+</div>
 
 ![Chrome split view: a client list app on the left, the Review Walkthru page on the right with one point validated and one point commented](site/img/hero.png)
 

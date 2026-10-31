@@ -31,4 +31,5 @@ label { display: grid; gap: 6px; font-weight: 500; }
 label .field { color: #1d1d23; }
 .muted { color: #6b6b76; }
 ul.projects { list-style: none; padding: 0; display: grid; gap: 8px; }
+@media (max-width: 720px) { nav { width: 132px; } nav b { margin: 0 4px 18px; white-space: nowrap; } main { padding: 22px 16px; } .wide-only { display: none; } }
 ul.projects li { background: #fff; border: 1px solid #e6e6ea; border-radius: 8px; padding: 10px 12px; display: flex; justify-content: space-between; }

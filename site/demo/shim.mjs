@@ -24,6 +24,23 @@ export function appPage (href) {
   return `app${path || '/clients'}/`
 }
 
+// Where an app link opens: the mock page in the app pane, or in a new tab when the pane is hidden (phones).
+export function appTarget (href, demoRoot, appVisible) {
+  return { href: new URL(appPage(href), demoRoot).href, newTab: !appVisible }
+}
+
+// What the site says Claude does with a sent review. A finished review goes to the push question.
+export function summarizeReview (review, isFinish) {
+  if (isFinish(review)) return 'Every point validated, no comment. Claude lists the commits it will push, then waits for your yes.'
+  const statuses = review.steps.flatMap(step => Object.values(step.points))
+  const comments = review.steps.flatMap(step => step.comments).length
+  const validated = statuses.filter(status => status === 'validated').length
+  const left = statuses.filter(status => status === 'not_seen').length
+  const n = (count, word) => `${count} ${word}${count === 1 ? '' : 's'}`
+  return `${n(validated, 'point')} validated, ${n(comments, 'comment')}, ${n(left, 'point')} left for the next round. ` +
+    'Claude answers each comment in the conversation, fixes, then offers that next round.'
+}
+
 // The page keeps boxes and comments in localStorage under its PR prefix: clear only those.
 export function resetDemo (storage, prefix) {
   const keys = Array.from({ length: storage.length }, (_, i) => storage.key(i)).filter(key => key?.startsWith(prefix))

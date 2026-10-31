@@ -51,13 +51,14 @@
       </div>
       <figure class="hero-visual">
         <div class="window"><img src="img/hero.png" width="2560" height="1600" alt="Chrome split view: a client list app on the left; on the right the Review Walkthru page, with one point validated and one point commented."></div>
-        <div class="term hero-term" aria-label="Claude Code output, illustrative">
+        <div class="term hero-term" role="img" aria-label="Claude Code output, illustrative">
           <p><span class="t-p">&gt;</span> /review-walkthru 128</p>
           <p class="t-dim">PR #128: 9 files, app on localhost:8000</p>
           <p><span class="t-ok">✓</span> Review ready: 4 steps, 9 points</p>
           <p><span class="t-am">●</span> Review received: 1 comment. Fixing.</p>
         </div>
         <div class="point-card hero-card-1"><span class="st ok" aria-hidden="true">✓</span><p><b>Decision, validated</b>Sorted by name only.</p></div>
+        <figcaption class="note hero-note">Terminal card: Claude Code output, illustrative.</figcaption>
         <div class="point-card hero-card-2"><span class="st doubt" aria-hidden="true">?</span><p><b>Doubt</b>Archived clients stay visible by default.</p></div>
       </figure>
     </div>
@@ -168,7 +169,7 @@
           <iframe id="demo-app" title="Sample app: Fernhill CRM" src="demo/app/clients/" loading="lazy"></iframe>
           <iframe id="demo-review" title="Review Walkthru page, playable demo" src="demo/" loading="lazy"></iframe>
         </div>
-        <noscript><img src="img/hero.png" width="2560" height="1600" alt="The Review Walkthru page next to the app it reviews."></noscript>
+        <noscript><img src="img/hero.png" width="2560" height="1600" alt="The Review Walkthru page next to the app it reviews."><p class="noscript">The live demo needs JavaScript. <a href="#install">Install Review Walkthru</a> to run it on your own pull requests.</p></noscript>
       </div>
       <div class="demo-bar">
         <p class="muted">Sample data. Nothing leaves your browser.</p>
@@ -194,8 +195,7 @@
         <div class="card">
           <h3><span class="num">2</span>Add the Chrome extension</h3>
           <p>It opens your app next to the review page, in split view. Chrome 155 or later.</p>
-          <a class="btn primary" href="https://chromewebstore.google.com/detail/kjigknfmabifbopeelbckkilheemoedh">Add to Chrome</a>
-          <p class="muted small">Pending Google review.</p>
+          <a class="btn secondary" href="https://chromewebstore.google.com/detail/kjigknfmabifbopeelbckkilheemoedh">Chrome Web Store, pending review</a>
         </div>
         <div class="card">
           <h3><span class="num">3</span>Review a pull request</h3>
