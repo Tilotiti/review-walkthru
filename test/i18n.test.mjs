@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { pickLang, STRINGS, t, counterText, pointsSeenText } from '../page/i18n.mjs'
+import { pickLang, STRINGS, t, counterText, pointsSeenText, issuesText, prefillLabel, prefillText, endIssuesText } from '../page/i18n.mjs'
 
 test('pickLang', () => {
   assert.equal(pickLang(['fr-FR', 'en']), 'fr')
@@ -42,4 +42,24 @@ test('the page takes its colons from the language, never a hard-coded French one
   const { readFile } = await import('node:fs/promises')
   const source = await readFile(new URL('../page/app.mjs', import.meta.url), 'utf8')
   assert.deepEqual(source.match(/\} : `/g) ?? [], [])
+})
+
+test('console and network counts, singular for 0 and 1 in French, zero parts left out', () => {
+  assert.equal(issuesText('fr', { errors: 2, warnings: 1, requests: 1 }), '2 erreurs · 1 avertissement · 1 requête en échec')
+  assert.equal(issuesText('fr', { errors: 0, warnings: 3, requests: 0 }), '3 avertissements')
+  assert.equal(issuesText('en', { errors: 1, warnings: 0, requests: 2 }), '1 error · 2 failed requests')
+})
+
+test('prefill texts', () => {
+  assert.equal(prefillLabel('fr', 1), 'Pré-remplir le formulaire (1 champ)')
+  assert.equal(prefillLabel('en', 3), 'Prefill the form (3 fields)')
+  assert.equal(prefillText('fr', 3, []), '3 champs remplis.')
+  assert.equal(prefillText('fr', 1, ['#siret']), '1 champ rempli. Non remplis : #siret.')
+  assert.equal(prefillText('en', 0, ['#a', '#b']), '0 fields filled. Not filled: #a, #b.')
+})
+
+test('end of round issues', () => {
+  assert.equal(endIssuesText('fr', 1), "1 erreur ou requête en échec pendant ce tour : Claude la verra.")
+  assert.equal(endIssuesText('fr', 3), '3 erreurs ou requêtes en échec pendant ce tour : Claude les verra.')
+  assert.equal(endIssuesText('en', 2), '2 errors or failed requests during this round: Claude will see them.')
 })

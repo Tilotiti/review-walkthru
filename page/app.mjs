@@ -2,9 +2,10 @@
 // scenario goes through text nodes, never innerHTML: the page holds the relay token.
 import {
   addComment, removeComment, togglePoint, goNext, goPrev, reopen,
-  pointStatus, stepStatus, counts, buildReview, isFinish, startUrl, mergeState, setDraft, draftKey
+  pointStatus, stepStatus, counts, buildReview, isFinish, startUrl, mergeState, setDraft, draftKey,
+  nextCommentId, addAppComment, setCapture, addLog, addRequest, issues, appComments, pinsFor, prefillFields, detectTarget, goToStep
 } from './review.mjs'
-import { pickLang, t as translate, counterText, pointsSeenText } from './i18n.mjs'
+import { pickLang, t as translate, counterText, pointsSeenText, issuesText, prefillLabel, prefillText, endIssuesText } from './i18n.mjs'
 import { createBridge, gate } from './bridge.mjs'
 
 const lang = pickLang(navigator.languages ?? [navigator.language])
@@ -37,10 +38,19 @@ let composer = null // { stepId, anchor, focus } of the open comment box; focus 
 let notice = null // { text, details? }
 let sending = false
 const bridge = createBridge(window)
+let hello = null // the extension's hello: its version and the comment shortcut
+let appReady = false // the app half runs the extension's script
+let coverage = null // { origin, covered }: whether the extension may run in the app
+const pendingCaptures = new Set() // comment ids whose capture is being uploaded
+let pendingPrefill = null // { id, unresolved } of the last prefill request
 
 const prefix = () => `rw:${data.scenario.pr.repo}#${data.scenario.pr.number}`
 const stepsById = () => new Map([...data.scenario.steps, ...data.skippedSteps].map(step => [step.id, step]))
 const sameAnchor = (a, b) => a.kind === b.kind && a.id === b.id
+// The step comments from the app go to: the current one, or the last one on the end view.
+const currentStepId = () => s.order[Math.min(s.current, s.order.length - 1)]
+const shortcutKey = () => hello?.shortcut || (/Mac/.test(navigator.platform) ? '⌥⇧C' : t('altShortcut'))
+const live = () => s && data && !data.submitted
 
 function icon (name) {
   const svg = document.createElementNS(SVG_NS, 'svg')
@@ -66,7 +76,78 @@ function h (tag, props = {}, ...children) {
 function update (next) {
   s = next
   store.set(`${prefix()}:r${data.round}`, s)
+  sendPins()
   render()
+}
+
+// The app shows a numbered pin for each comment of the current step made on it.
+function sendPins () {
+  if (appReady && s && data) bridge.send('pins', { items: data.submitted ? [] : pinsFor(s, currentStepId()) })
+}
+
+// ---- messages from the extension ----
+
+bridge.on('app-ready', () => { appReady = true; sendPins(); render() })
+bridge.on('app-gone', () => { appReady = false; render() })
+bridge.on('coverage', message => { coverage = { origin: message.origin, covered: message.covered }; render() })
+bridge.on('shortcut-in-review', () => { notice = { text: t('shortcutInReview', { key: shortcutKey() }) }; render() })
+
+bridge.on('navigated', ({ url }) => {
+  if (!live()) return
+  sendPins()
+  const step = stepsById().get(s.order[s.current])
+  const target = detectTarget(step, url)
+  if (!target || target === step.id || !s.order.includes(target)) return
+  composer = null
+  notice = { text: t('detected', { title: stepsById().get(target).title }) }
+  update(goToStep(s, target))
+})
+
+bridge.on('comment', message => {
+  if (!live()) return
+  const stepId = currentStepId()
+  const id = nextCommentId(s)
+  const round = data.round
+  const next = addAppComment(s, stepId, message, message.text)
+  if (next === s) return
+  if (message.capture) uploadCapture(round, stepId, id, message.capture)
+  update(next)
+})
+
+bridge.on('log', ({ level, text, url, at }) => { if (live()) update(addLog(s, currentStepId(), { level, text, url, at })) })
+// resourceType: the message's own "type" names the message.
+bridge.on('request', ({ method, url, status, error, resourceType, at }) => {
+  if (live()) update(addRequest(s, currentStepId(), { method, url, status, error, type: resourceType, at }))
+})
+
+bridge.on('prefilled', ({ id, filled, missing, unsupported }) => {
+  if (pendingPrefill?.id !== id) return
+  notice = { text: prefillText(lang, filled, [...missing, ...unsupported, ...pendingPrefill.unresolved]) }
+  pendingPrefill = null
+  render()
+})
+
+// The capture goes to the relay at once: localStorage could not hold the image until the review is sent.
+async function uploadCapture (round, stepId, id, dataUrl) {
+  pendingCaptures.add(id)
+  try {
+    const blob = await (await fetch(dataUrl)).blob()
+    const res = await fetch(`api/capture/${id}`, { method: 'POST', headers: { 'Content-Type': 'image/png' }, body: blob })
+    if (!res.ok) throw new Error(String(res.status))
+    const { file } = await res.json()
+    pendingCaptures.delete(id)
+    if (live() && data.round === round) update(setCapture(s, stepId, id, file))
+  } catch {
+    pendingCaptures.delete(id)
+    notice = { text: t('captureFailed') }
+    render()
+  }
+}
+
+function prefill (step) {
+  const { fields, unresolved } = prefillFields(step, data.credentials)
+  pendingPrefill = { id: `${step.id}-${Date.now()}`, unresolved }
+  bridge.send('prefill', { id: pendingPrefill.id, fields })
 }
 
 // Keep what still exists from the saved state: a restart reuses round numbers,
@@ -113,6 +194,7 @@ async function send () {
       store.set(`${prefix()}:r${data.round}`, null) // a restart reuses round numbers: never restore a sent round
 
       data = { ...data, submitted: true }
+      sendPins()
       notice = null
       setTimeout(load, POLL_MS)
     } else {
@@ -207,8 +289,37 @@ function header (step) {
       h('div', { class: 'steps', 'aria-hidden': 'true' }, s.order.map((id, i) =>
         h('i', { class: `${stepStatus(s.entries[id])}${i === s.current ? ' current' : ''}` }))),
       h('span', { class: 'num' }, meta)),
+    step ? issuesBlock(s.entries[step.id]) : null,
     accounts(),
     skippedBlock())
+}
+
+const clock = at => new Date(at).toLocaleTimeString(lang, { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+
+// What the app's console and network reported during this step.
+function issuesBlock (entry) {
+  const c = issues(entry)
+  if (!c.errors && !c.warnings && !c.requests) return null
+  return h('details', { class: 'issues' }, h('summary', {}, issuesText(lang, c)),
+    h('ul', {},
+      entry.logs.map(l => h('li', { class: l.level }, h('span', { class: 'when' }, clock(l.at)), l.text)),
+      entry.requests.map(r => h('li', { class: 'error' }, h('span', { class: 'when' }, clock(r.at)), `${r.method} ${r.status ?? r.error} ${r.url}`))))
+}
+
+// Offered once the app half runs the extension's script.
+function toolsRow (step) {
+  if (!appReady) return null
+  return h('div', { class: 'tools' },
+    h('button', { type: 'button', class: 'ghost small', onclick: () => bridge.send('comment-mode') }, icon('bubble'), t('commentInApp')),
+    step.prefill?.length ? h('button', { type: 'button', class: 'ghost small', onclick: () => prefill(step) }, prefillLabel(lang, step.prefill.length)) : null,
+    h('p', { class: 'muted small hint' }, t('shortcutHint', { key: shortcutKey() })))
+}
+
+// The app is on a host the extension may not run on yet: one click asks Chrome for it.
+function grantBox () {
+  if (!coverage || coverage.covered || appReady) return null
+  return h('div', { class: 'tip' }, h('p', {}, t('grantBanner', { origin: coverage.origin })),
+    h('button', { type: 'button', class: 'primary small', onclick: () => bridge.send('grant', { origin: coverage.origin }) }, t('grantButton')))
 }
 
 function section (title, ...children) {
@@ -226,7 +337,7 @@ function appLink (path, label = path, props = {}) {
 
 function composerBox (stepId, anchor, { free = false } = {}) {
   const key = draftKey(stepId, anchor)
-  const focusNow = !free && composer?.focus
+  const focusNow = composer?.focus && (!free || composer.anchor.kind === 'step')
   const area = h('textarea', { rows: free ? 2 : 3, placeholder: t('placeholder'), 'aria-label': t('placeholder'), 'data-autofocus': focusNow ? true : null })
   area.value = s.drafts?.[key] ?? ''
   // Keep the draft in the state without re-rendering, so checking a point does not erase it.
@@ -242,7 +353,9 @@ function composerBox (stepId, anchor, { free = false } = {}) {
     if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) { event.preventDefault(); submit() }
     if (event.key === 'Escape' && !free) cancel()
   })
-  return h('div', { class: 'composer' }, area,
+  return h('div', { class: 'composer' },
+    anchor.quote ? h('p', { class: 'quote' }, t('quoted', { text: anchor.quote })) : null,
+    area,
     h('div', { class: 'row' }, h('span', { class: 'muted small' }, t('shortcut')),
       h('span', {},
         free ? null : h('button', { type: 'button', class: 'ghost small', onclick: cancel }, t('cancel')),
@@ -258,10 +371,31 @@ function note (kind, it) {
       it.source === 'inferred' ? h('span', { class: 'inf' }, t('inferred')) : null))
 }
 
+const removeButton = (step, c) =>
+  h('button', { type: 'button', class: 'ghost small', onclick: () => update(removeComment(s, step.id, c.id)) }, t('remove'))
+
 function commentList (step, comments) {
   return comments.map(c => h('div', { class: 'cm-txt' },
-    h('p', {}, c.text),
-    h('button', { type: 'button', class: 'ghost small', onclick: () => update(removeComment(s, step.id, c.id)) }, t('remove'))))
+    h('div', { class: 'grow' },
+      c.anchor?.quote ? h('p', { class: 'quote' }, t('quoted', { text: c.anchor.quote })) : null,
+      h('p', {}, c.text)),
+    removeButton(step, c)))
+}
+
+// A comment made on the app: its pin number, what it targets, and its capture.
+function appCommentView (step, c, n) {
+  const a = c.anchor
+  const target = a.kind === 'zone' ? t('zoneLabel', { w: Math.round(a.rect.width), h: Math.round(a.rect.height) })
+    : a.kind === 'text' ? t('quoted', { text: a.quote })
+      : [a.element.text || a.element.tag, a.element.selector].join(' · ')
+  return h('div', { class: 'cm-txt app' },
+    h('span', { class: 'pin-n', 'aria-hidden': 'true' }, String(n)),
+    h('div', { class: 'grow' },
+      h('p', {}, c.text),
+      h('p', { class: 'muted small target' }, target),
+      a.capture ? h('img', { class: 'shot', src: a.capture, alt: '' })
+        : pendingCaptures.has(c.id) ? null : h('p', { class: 'muted small' }, t('noCapture', { key: shortcutKey() }))),
+    removeButton(step, c))
 }
 
 function pointView (step, point) {
@@ -271,7 +405,7 @@ function pointView (step, point) {
   const open = composer && composer.stepId === step.id && sameAnchor(composer.anchor, anchor)
   const comments = entry.comments.filter(c => c.anchor?.kind === 'point' && c.anchor.id === point.id)
   const titleId = `pt-${step.id}-${point.id}`
-  return h('div', { class: `pt ${status}` },
+  return h('div', { class: `pt ${status}`, 'data-point': point.id },
     h('button', {
       type: 'button', class: 'ck', role: 'checkbox', 'aria-checked': String(Boolean(entry.checked[point.id])), 'aria-labelledby': titleId,
       'data-focus-key': `ck:${step.id}:${point.id}`,
@@ -288,13 +422,14 @@ function pointView (step, point) {
         : null,
       commentList(step, comments),
       open
-        ? composerBox(step.id, anchor)
+        ? composerBox(step.id, composer.anchor)
         : h('button', { type: 'button', class: 'ghost small comment-btn', onclick: () => { composer = { stepId: step.id, anchor, focus: true }; render() } }, icon('bubble'), t('comment'))))
 }
 
 function stepView (step) {
   const entry = s.entries[step.id]
-  const stepComments = entry.comments.filter(c => c.anchor?.kind !== 'point')
+  const stepComments = entry.comments.filter(c => c.anchor?.kind === 'step')
+  const stepAnchor = composer?.stepId === step.id && composer.anchor.kind === 'step' ? composer.anchor : { kind: 'step' }
   const startPath = step.start?.startsWith('/') ? step.start : null
   return h('main', {},
     h('div', { class: 'intro' },
@@ -308,9 +443,13 @@ function stepView (step) {
         : [step.start ? h('p', { class: 'small' }, `${t('startAt')}${t('colon')}`, step.start) : null,
             step.path
               ? appLink(step.path, [icon('out'), t('openInApp')], { class: 'link' })
-              : h('p', { class: 'muted small' }, t('noScreen'))]),
+              : h('p', { class: 'muted small' }, t('noScreen'))],
+      toolsRow(step)),
     h('div', { class: 'pts' }, step.points.map(point => pointView(step, point))),
-    section(t('yourComments'), commentList(step, stepComments), composerBox(step.id, { kind: 'step' }, { free: true })))
+    section(t('yourComments'),
+      appComments(entry).map((c, i) => appCommentView(step, c, i + 1)),
+      commentList(step, stepComments),
+      composerBox(step.id, stepAnchor, { free: true })))
 }
 
 function endView () {
@@ -330,6 +469,8 @@ function footer (step) {
   const c = counts(s)
   const finishing = !step && isFinish(buildReview(s, new Date()))
   const next = step?.next
+  // Errors do not block the end of a round: they go to Claude, who lists them before pushing.
+  const errors = step ? 0 : s.order.reduce((n, id) => { const c = issues(s.entries[id]); return n + c.errors + c.requests }, 0)
   return h('footer', { class: 'foot' },
     next ? h('div', { class: 'next' },
       h('p', {}, `${t('then')}${t('colon')}`, h('b', {}, stepsById().get(next.stepId)?.title ?? t('endOfRound'))),
@@ -337,6 +478,7 @@ function footer (step) {
     h('div', { class: 'nav' },
       h('button', { type: 'button', class: 'ghost', disabled: s.current === 0, onclick: () => { composer = null; update(goPrev(s)) } }, icon('left'), t('prev')),
       step ? h('button', { type: 'button', class: 'primary', onclick: () => { composer = null; update(goNext(s)) } }, t('next'), icon('right')) : null),
+    errors ? h('p', { class: 'muted small end-issues' }, endIssuesText(lang, errors)) : null,
     h('div', { class: 'review' },
       h('span', { class: 'count' }, counterText(lang, c.comments, c.pointsLeft)),
       h('button', { type: 'button', class: 'dark', disabled: sending, onclick: send }, sending ? t('sending') : t(finishing ? 'finish' : 'send'))))
@@ -353,8 +495,42 @@ function view () {
     return [...out, h('main', { class: 'done' }, h('p', {}, t(finished ? 'finished' : 'sent')))]
   }
   const step = s.current < s.order.length ? stepsById().get(s.order[s.current]) : null
-  return [...out, header(step), step ? stepView(step) : endView(), footer(step)]
+  return [...out, grantBox(), header(step), step ? stepView(step) : endView(), footer(step)]
 }
+
+// Selecting text of the scenario offers a comment on the point that holds it, with the quote.
+// The button lives outside #app, so renders leave it alone.
+let selTarget = null
+const selButton = h('button', { type: 'button', class: 'primary small sel-comment', hidden: true,
+  onmousedown: event => event.preventDefault(), // keep the selection
+  onclick: () => {
+    selButton.hidden = true
+    if (!selTarget || !live()) return
+    composer = { ...selTarget, focus: true }
+    getSelection()?.removeAllRanges()
+    render()
+  } }, icon('bubble'), t('comment'))
+document.body.append(selButton)
+
+function placeSelButton () {
+  const sel = getSelection()
+  const text = sel?.toString().trim()
+  const node = sel?.anchorNode?.nodeType === 1 ? sel.anchorNode : sel?.anchorNode?.parentElement
+  const step = live() && s.current < s.order.length ? stepsById().get(s.order[s.current]) : null
+  if (!text || !step || !node || !document.getElementById('app').contains(node) || node.closest('textarea, button, .composer, .cm-txt')) {
+    selButton.hidden = true
+    return
+  }
+  const quote = text.slice(0, 300)
+  const point = node.closest('[data-point]')?.dataset.point
+  selTarget = { stepId: step.id, anchor: point ? { kind: 'point', id: point, quote } : { kind: 'step', quote } }
+  const r = sel.getRangeAt(0).getBoundingClientRect()
+  selButton.style.top = `${Math.round(r.bottom + 6)}px`
+  selButton.style.left = `${Math.round(Math.max(8, Math.min(r.left, innerWidth - 140)))}px`
+  selButton.hidden = false
+}
+document.addEventListener('mouseup', () => setTimeout(placeSelButton))
+document.addEventListener('keyup', event => { if (event.shiftKey) placeSelButton() })
 
 // The page rebuilds its DOM on every change: give the focus back to the same control,
 // so a keyboard user keeps their place after checking a point.
@@ -368,6 +544,7 @@ function render () {
   else if (focusKey) root.querySelector(`[data-focus-key="${CSS.escape(focusKey)}"]`)?.focus()
 }
 
-const access = gate(await bridge.waitForHello(HELLO_MS), document.documentElement.hasAttribute('data-rw-extension'))
+hello = await bridge.waitForHello(HELLO_MS)
+const access = gate(hello, document.documentElement.hasAttribute('data-rw-extension'))
 if (access === 'ok') load()
 else document.getElementById('app').replaceChildren(gateView(access))

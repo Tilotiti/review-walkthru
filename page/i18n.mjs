@@ -24,6 +24,17 @@ export const STRINGS = {
     gateUpdateTitle: "Mets à jour l'extension Review Walkthru",
     gateUpdateBody: 'Ouvre chrome://extensions, active le mode développeur et clique sur Mettre à jour, puis recharge cette page.',
     reload: 'Recharger',
+    commentInApp: "Commenter dans l'app",
+    shortcutHint: "{key} dans l'app : commenter un élément ou une zone",
+    noCapture: "Sans capture : appuie une fois sur {key} dans l'app pour en joindre une.",
+    captureFailed: "La capture n'a pas pu être enregistrée : le commentaire part sans elle.",
+    zoneLabel: 'Zone {w} × {h}',
+    quoted: '« {text} »',
+    detected: 'Écran suivant détecté : {title}',
+    shortcutInReview: "Clique d'abord dans l'app, puis appuie sur {key}.",
+    grantBanner: "Autorise Review Walkthru sur {origin} pour commenter l'app et voir sa console.",
+    grantButton: 'Autoriser',
+    altShortcut: 'Alt+Maj+C',
     docTitle: 'Recette · PR #{n}',
     endOfRound: 'Fin du tour',
     stepOf: 'Étape {n}/{total}',
@@ -78,6 +89,17 @@ export const STRINGS = {
     gateUpdateTitle: 'Update the Review Walkthru extension',
     gateUpdateBody: 'Open chrome://extensions, turn on Developer mode and click Update, then reload this page.',
     reload: 'Reload',
+    commentInApp: 'Comment in the app',
+    shortcutHint: '{key} in the app: comment on an element or an area',
+    noCapture: 'No capture: press {key} once in the app to attach one.',
+    captureFailed: 'The capture could not be saved: the comment goes without it.',
+    zoneLabel: 'Area {w} × {h}',
+    quoted: '“{text}”',
+    detected: 'Next screen detected: {title}',
+    shortcutInReview: 'Click in the app first, then press {key}.',
+    grantBanner: 'Allow Review Walkthru on {origin} to comment on the app and see its console.',
+    grantButton: 'Allow',
+    altShortcut: 'Alt+Shift+C',
     docTitle: 'Review · PR #{n}',
     endOfRound: 'End of round',
     stepOf: 'Step {n}/{total}',
@@ -137,4 +159,34 @@ export function counterText (lang, comments, pointsLeft) {
 export function pointsSeenText (lang, seen, total) {
   if (lang === 'fr') return `${seen} point${seen <= 1 ? '' : 's'} sur ${total}`
   return `${seen} of ${total} point${total === 1 ? '' : 's'}`
+}
+
+// French uses the singular for 0 and 1, English only for 1.
+const many = (lang, n) => lang === 'fr' ? n > 1 : n !== 1
+const count = (lang, n, fr, en) => `${n} ${lang === 'fr' ? fr[many(lang, n) ? 1 : 0] : en[many(lang, n) ? 1 : 0]}`
+
+// "2 erreurs · 1 avertissement · 1 requête en échec": the parts that are not zero.
+export function issuesText (lang, { errors, warnings, requests }) {
+  return [
+    errors && count(lang, errors, ['erreur', 'erreurs'], ['error', 'errors']),
+    warnings && count(lang, warnings, ['avertissement', 'avertissements'], ['warning', 'warnings']),
+    requests && count(lang, requests, ['requête en échec', 'requêtes en échec'], ['failed request', 'failed requests'])
+  ].filter(Boolean).join(' · ')
+}
+
+export const prefillLabel = (lang, n) => lang === 'fr'
+  ? `Pré-remplir le formulaire (${count(lang, n, ['champ', 'champs'], [])})`
+  : `Prefill the form (${count(lang, n, [], ['field', 'fields'])})`
+
+// problems: selectors of the fields left empty (not found, not supported, or an account missing).
+export function prefillText (lang, filled, problems) {
+  const done = lang === 'fr' ? `${count(lang, filled, ['champ rempli', 'champs remplis'], [])}.` : `${count(lang, filled, [], ['field filled', 'fields filled'])}.`
+  if (!problems.length) return done
+  return lang === 'fr' ? `${done} Non remplis : ${problems.join(', ')}.` : `${done} Not filled: ${problems.join(', ')}.`
+}
+
+export function endIssuesText (lang, n) {
+  return lang === 'fr'
+    ? `${count(lang, n, ['erreur ou requête en échec', 'erreurs ou requêtes en échec'], [])} pendant ce tour : Claude ${many(lang, n) ? 'les' : 'la'} verra.`
+    : `${count(lang, n, [], ['error or failed request', 'errors or failed requests'])} during this round: Claude will see ${many(lang, n) ? 'them' : 'it'}.`
 }
