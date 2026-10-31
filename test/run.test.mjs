@@ -7,7 +7,7 @@ import { tmpdir } from 'node:os'
 import { join, delimiter } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { promisify } from 'node:util'
-import { startUrl, chromeCommand, findChrome, findOnPath } from '../scripts/run.mjs'
+import { startUrl, chromeCommand, findChrome, findOnPath, chromeUserDataDir, findExtension, extensionStatus, EXTENSION_ID } from '../scripts/run.mjs'
 import { r1, r2 } from './helpers.mjs'
 
 test('startUrl', () => {
@@ -68,4 +68,64 @@ test('findOnPath returns the first match in PATH order', async () => {
   await writeFile(join(b, 'chromium'), '')
   assert.equal(findOnPath(['google-chrome', 'chromium'], [a, b].join(delimiter)), join(b, 'chromium'))
   assert.equal(findOnPath(['nope'], [a, b].join(delimiter)), null)
+})
+
+// A Chrome user data folder with two profiles; Profile 1 was used last.
+async function chromeData () {
+  const dir = await mkdtemp(join(tmpdir(), 'rw-chrome-'))
+  await writeFile(join(dir, 'Local State'), JSON.stringify({ profile: { last_used: 'Profile 1', info_cache: { Default: { name: 'Perso' }, 'Profile 1': { name: 'Work' } } } }))
+  await mkdir(join(dir, 'Default')); await mkdir(join(dir, 'Profile 1'))
+  const prefs = (profile, settings, file = 'Secure Preferences') => writeFile(join(dir, profile, file), JSON.stringify({ extensions: { settings } }))
+  return { dir, prefs }
+}
+const store = version => ({ [EXTENSION_ID]: { location: 1, path: `${EXTENSION_ID}/${version}_0` } })
+
+test('an extension from the Store, in the last used profile', async () => {
+  const { dir, prefs } = await chromeData()
+  await prefs('Default', {}); await prefs('Profile 1', store('0.5.0'))
+  const found = findExtension(dir)
+  assert.deepEqual(found, { readable: true, lastUsed: 'Profile 1', profiles: [{ dir: 'Profile 1', name: 'Work', version: '0.5.0', enabled: true }] })
+  assert.deepEqual(extensionStatus(found), { ok: true, profile: 'Profile 1', problem: null })
+})
+
+test('an unpacked extension in another profile, found in Preferences', async () => {
+  const { dir, prefs } = await chromeData()
+  const unpacked = await mkdtemp(join(tmpdir(), 'rw-unpacked-'))
+  await writeFile(join(unpacked, 'manifest.json'), JSON.stringify({ version: '0.10.0' }))
+  await prefs('Default', { [EXTENSION_ID]: { location: 4, path: unpacked } }, 'Preferences')
+  assert.deepEqual(extensionStatus(findExtension(dir)), { ok: true, profile: 'Default', problem: null })
+})
+
+test('a disabled, an outdated or a missing extension is a problem', async () => {
+  const disabled = await chromeData()
+  await disabled.prefs('Profile 1', { [EXTENSION_ID]: { ...store('0.5.0')[EXTENSION_ID], disable_reasons: [1] } })
+  assert.deepEqual(extensionStatus(findExtension(disabled.dir)), { ok: false, profile: null, problem: 'disabled' })
+  const old = await chromeData()
+  await old.prefs('Profile 1', store('0.4.0'))
+  assert.deepEqual(extensionStatus(findExtension(old.dir)), { ok: false, profile: null, problem: 'outdated' })
+  const none = await chromeData()
+  await none.prefs('Profile 1', {})
+  assert.deepEqual(extensionStatus(findExtension(none.dir)), { ok: false, profile: null, problem: 'absent' })
+})
+
+test('unreadable Chrome files do not block', async () => {
+  const { dir } = await chromeData()
+  await writeFile(join(dir, 'Local State'), '{')
+  assert.equal(findExtension(dir).readable, false)
+  assert.deepEqual(extensionStatus(findExtension(dir)), { ok: false, profile: null, problem: 'unreadable' })
+  assert.equal(findExtension(join(dir, 'nowhere')).readable, false)
+})
+
+test('chromeUserDataDir per platform', () => {
+  assert.equal(chromeUserDataDir('darwin', {}, '/Users/jo'), join('/Users/jo', 'Library', 'Application Support', 'Google', 'Chrome'))
+  assert.equal(chromeUserDataDir('linux', {}, '/home/jo'), join('/home/jo', '.config', 'google-chrome'))
+  assert.equal(chromeUserDataDir('win32', { LOCALAPPDATA: 'C:\\Users\\Jo\\AppData\\Local' }, 'C:\\Users\\Jo'), 'C:\\Users\\Jo\\AppData\\Local\\Google\\Chrome\\User Data')
+  assert.equal(chromeUserDataDir('win32', {}, 'C:\\Users\\Jo'), null)
+})
+
+test('chromeCommand opens the profile that has the extension', () => {
+  const urls = ['http://127.0.0.1:5000/t/']
+  assert.deepEqual(chromeCommand('darwin', urls, null, 'Profile 1').args, ['-na', 'Google Chrome', '--args', '--profile-directory=Profile 1', '--new-window', ...urls])
+  assert.deepEqual(chromeCommand('linux', urls, '/usr/bin/google-chrome', 'Default').args, ['--profile-directory=Default', '--new-window', ...urls])
+  assert.deepEqual(chromeCommand('win32', urls, 'C:\\chrome.exe', 'Profile 2').args, ['--profile-directory=Profile 2', '--new-window', ...urls])
 })
