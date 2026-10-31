@@ -38,3 +38,9 @@ test('page copy', () => {
   assert.equal(pointsSeenText('en', 1, 2), '1 of 2 points')
   assert.equal(t('fr', 'validatedBefore', { n: 1 }), 'validé au tour 1')
 })
+
+test('the page takes its colons from the language, never a hard-coded French one', async () => {
+  const { readFile } = await import('node:fs/promises')
+  const source = await readFile(new URL('../page/app.mjs', import.meta.url), 'utf8')
+  assert.deepEqual(source.match(/\} : `/g) ?? [], [])
+})

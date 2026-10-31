@@ -1,0 +1,190 @@
+{
+  "format": "review-walkthru/scenario@2",
+  "pr": {
+    "repo": "fernhill/crm",
+    "number": 128,
+    "headSha": "8c41f0d2a97e3b5c6d1e0f4a2b9c8d7e6f5a4b3c"
+  },
+  "round": 1,
+  "title": "Archive clients instead of deleting them",
+  "summary": "Clients get an archived status. The list can filter on it, a client page can archive and restore, and a migration adds the column for existing clients.",
+  "app": {
+    "baseUrl": "http://localhost:8000"
+  },
+  "prerequisites": [
+    {
+      "id": "admin",
+      "kind": "account",
+      "text": "Test admin account (credentials shown on this page)"
+    }
+  ],
+  "steps": [
+    {
+      "id": "clients-list",
+      "title": "Client list",
+      "path": "/clients",
+      "requires": [
+        "admin"
+      ],
+      "page": "The list now shows each client's status. Archived clients carry a grey tag.",
+      "points": [
+        {
+          "id": "sort",
+          "title": "Sorting",
+          "do": "Clients are sorted by name.",
+          "decisions": [
+            {
+              "id": "d1",
+              "text": "Sorted by name only, no per-column sorting.",
+              "cost": "Column sorting would have to be added.",
+              "source": "author"
+            }
+          ],
+          "doubts": []
+        },
+        {
+          "id": "filter",
+          "title": "Status filter",
+          "do": "Switch the status filter between All, Active and Archived.",
+          "decisions": [],
+          "doubts": [
+            {
+              "id": "q1",
+              "text": "Archived clients stay visible by default.",
+              "source": "inferred"
+            }
+          ]
+        },
+        {
+          "id": "search",
+          "title": "Search",
+          "do": "Search for \"Bist\", then for a name that does not exist.",
+          "decisions": [],
+          "doubts": []
+        }
+      ],
+      "next": {
+        "stepId": "client-new",
+        "instruction": "Click \"New client\""
+      },
+      "start": null,
+      "reason": null
+    },
+    {
+      "id": "client-new",
+      "title": "Create a client",
+      "path": "/clients/new",
+      "requires": [
+        "admin"
+      ],
+      "page": "The creation form: name, VAT number and status.",
+      "points": [
+        {
+          "id": "create",
+          "title": "Creation",
+          "do": "Create \"Bistro Test\" with a VAT number.",
+          "decisions": [
+            {
+              "id": "d1",
+              "text": "The VAT number is optional.",
+              "cost": "A required-field rule and a migration for clients without one.",
+              "source": "inferred"
+            }
+          ],
+          "doubts": []
+        },
+        {
+          "id": "empty-name",
+          "title": "Required name",
+          "do": "Submit the form without a name.",
+          "decisions": [],
+          "doubts": []
+        }
+      ],
+      "next": {
+        "stepId": "client-archive",
+        "instruction": "Open the client you just created"
+      },
+      "start": null,
+      "reason": null
+    },
+    {
+      "id": "client-archive",
+      "title": "Archive and restore",
+      "path": "/clients/42",
+      "requires": [
+        "admin"
+      ],
+      "page": "Bistro Test's page, with the new Archive button. An archived client shows a banner and a Restore button.",
+      "points": [
+        {
+          "id": "archive",
+          "title": "Archiving",
+          "do": "Archive the client.",
+          "decisions": [],
+          "doubts": [
+            {
+              "id": "q1",
+              "text": "Archiving asks for no confirmation.",
+              "source": "inferred"
+            }
+          ]
+        },
+        {
+          "id": "restore",
+          "title": "Restoring",
+          "do": "Restore the archived client from its page.",
+          "decisions": [
+            {
+              "id": "d1",
+              "text": "Only admins can restore a client.",
+              "cost": "A new permission for managers.",
+              "source": "author"
+            }
+          ],
+          "doubts": []
+        }
+      ],
+      "next": {
+        "stepId": "migration-archived",
+        "instruction": "Move on to the migration"
+      },
+      "start": null,
+      "reason": null
+    },
+    {
+      "id": "migration-archived",
+      "title": "Archived status migration",
+      "path": null,
+      "requires": [],
+      "page": "The migration adds an archived_at column, empty for existing clients.",
+      "points": [
+        {
+          "id": "existing",
+          "title": "Existing clients",
+          "do": "Existing clients stay active after the migration.",
+          "decisions": [],
+          "doubts": []
+        },
+        {
+          "id": "nullable",
+          "title": "Empty by default",
+          "do": null,
+          "decisions": [
+            {
+              "id": "d1",
+              "text": "archived_at stays empty for existing clients.",
+              "cost": "A backfill script.",
+              "source": "author"
+            }
+          ],
+          "doubts": []
+        }
+      ],
+      "next": null,
+      "start": null,
+      "reason": null
+    }
+  ],
+  "skipped": []
+}

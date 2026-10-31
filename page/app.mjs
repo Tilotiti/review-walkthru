@@ -291,14 +291,14 @@ function stepView (step) {
   const startPath = step.start?.startsWith('/') ? step.start : null
   return h('main', {},
     h('div', { class: 'intro' },
-      data.round > 1 && step.reason ? h('p', { class: 'why' }, h('strong', {}, `${t('why')} : `), step.reason) : null,
+      data.round > 1 && step.reason ? h('p', { class: 'why' }, h('strong', {}, `${t('why')}${t('colon')}`), step.reason) : null,
       h('p', {}, step.page),
       // A start path is where the step happens: it replaces the link to the step's screen.
       // Rounds registered before startLabel existed fall back to the path.
       startPath
         ? [h('p', { class: 'small' }, t('startAt')),
             appLink(startPath, [icon('out'), step.startLabel ?? startPath], { class: 'button ghost small go', title: startPath })]
-        : [step.start ? h('p', { class: 'small' }, `${t('startAt')} : `, step.start) : null,
+        : [step.start ? h('p', { class: 'small' }, `${t('startAt')}${t('colon')}`, step.start) : null,
             step.path
               ? appLink(step.path, [icon('out'), t('openInApp')], { class: 'link' })
               : h('p', { class: 'muted small' }, t('noScreen'))]),

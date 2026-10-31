@@ -1,10 +1,11 @@
-# Publishes site/ to GitHub Pages (review-walkthru.henry.pro).
+# Builds the site (site/ plus the review page for the demo) and publishes it to GitHub Pages
+# (review-walkthru.henry.pro).
 name: Pages
 
 on:
   push:
     branches: [main]
-    paths: ['site/**', '.github/workflows/pages.yml']
+    paths: ['site/**', 'page/**', 'scripts/build-site.mjs', '.github/workflows/pages.yml']
   workflow_dispatch:
 
 permissions:
@@ -24,9 +25,13 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - run: npm run build:site
       - uses: actions/configure-pages@v6
       - uses: actions/upload-pages-artifact@v5
         with:
-          path: site
+          path: dist/site
       - id: deployment
         uses: actions/deploy-pages@v5
