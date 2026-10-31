@@ -1,9 +1,16 @@
 {
   "name": "review-walkthru",
-  "version": "0.4.1",
+  "displayName": "Review Walkthru",
+  "version": "0.4.2",
   "description": "Turns a pull request into a real acceptance test: every screen, every decision Claude made, checked in your running app.",
-  "author": { "name": "Thibault Henry" },
+  "author": { "name": "Thibault Henry", "url": "https://github.com/Tilotiti" },
   "license": "MIT",
+  "homepage": "https://review-walkthru.henry.pro",
   "repository": "https://github.com/Tilotiti/review-walkthru",
-  "keywords": ["review", "uat", "pull-request", "chrome"]
+  "documentationUrl": "https://github.com/Tilotiti/review-walkthru#readme",
+  "supportUrl": "https://github.com/Tilotiti/review-walkthru/issues",
+  "privacyPolicyUrl": "https://review-walkthru.henry.pro/privacy.html",
+  "termsOfServiceUrl": "https://review-walkthru.henry.pro/terms.html",
+  "icon": "./.claude-plugin/icon.png",
+  "keywords": ["review", "uat", "acceptance-test", "pull-request", "chrome"]
 }
