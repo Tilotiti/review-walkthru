@@ -1,8 +1,9 @@
 // Runs in every localhost tab, and does nothing unless the worker says this tab is the app of a
 // running review. Then: comments on the app (element, selected text, area) with a capture,
-// the app's console for the review page, the prefill of a form, the pins of the current step.
+// the app's console for the review page, the prefill of a form, the pins of the current step,
+// the element of a point the reviewer asks to see.
 (() => {
-  const { describeElement, fillField } = globalThis.RW_DOM
+  const { describeElement, fillField, findTarget } = globalThis.RW_DOM
   const overlay = globalThis.RW_OVERLAY
   const msg = (key, ...args) => chrome.i18n.getMessage(key, args.map(String))
   const french = chrome.i18n.getUILanguage().startsWith('fr')
@@ -14,6 +15,7 @@
   const plain = r => ({ x: r.x, y: r.y, width: r.width, height: r.height })
   let lastTarget = null // the element under the last right-click, for the context menu
   let active = false // this tab is the app of a running review
+  let locating = 0 // the last locate request: a newer one stops the search of an older one
 
   // The capture is taken at the gesture, before the bubble opens, without the overlay in it.
   async function comment (kind, near, element, quote) {
@@ -92,6 +94,20 @@
     }))
   }
 
+  // wait: how long to look for the element, since an app may render it after its load.
+  function locate ({ id, selector, text, wait }) {
+    const mine = ++locating
+    const deadline = Date.now() + (Number(wait) || 0)
+    const attempt = () => {
+      if (mine !== locating) return
+      const el = findTarget(document, { selector, text })
+      if (el) overlay.flash(el)
+      if (el || Date.now() >= deadline) return toPage({ type: 'located', id, found: Boolean(el) })
+      setTimeout(attempt, 150)
+    }
+    attempt()
+  }
+
   function onMessage (message) {
     if (message?.type !== 'rw:to-app') return
     const m = message.message
@@ -104,6 +120,7 @@
     else if (m.type === 'context') { if (!(m.selection && onSelection()) && lastTarget?.isConnected) onElement(lastTarget) }
     else if (m.type === 'prefill') prefill(m)
     else if (m.type === 'pins') pins(m)
+    else if (m.type === 'locate') locate(m)
   }
 
   const onContextMenu = event => { lastTarget = event.target }
@@ -130,6 +147,8 @@
     overlay.setMode(false)
     overlay.hideSelectionButton()
     overlay.setPins([])
+    overlay.stopFlash()
+    locating++
     document.removeEventListener('contextmenu', onContextMenu, true)
     document.removeEventListener('mouseup', onMouseUp, true)
     document.removeEventListener('review-walkthru:console', onConsole)

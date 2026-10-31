@@ -2,7 +2,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 
 await import('../extension/dom.js')
-const { buildSelector, roleOf, textOf, describeElement, fillField } = globalThis.RW_DOM
+const { buildSelector, roleOf, textOf, describeElement, fillField, findTarget } = globalThis.RW_DOM
 
 // The few DOM members dom.js reads, nothing more.
 class El {
@@ -112,4 +112,23 @@ test('fillField reports what it cannot fill', () => {
   const editable = new El('div'); editable.isContentEditable = true
   assert.equal(fillField(editable, 'x', win), 'unsupported')
   assert.equal(fillField(new El('div'), 'x', win), 'unsupported')
+})
+
+test('findTarget shows one visible match or nothing', () => {
+  const node = (text, attrs = {}, visible = true) => ({ innerText: text, getAttribute: name => attrs[name] ?? null, getClientRects: () => visible ? [{}] : [] })
+  const unlink = node('Unlink Google')
+  const keep = node('Keep')
+  const mobile = node('Unlink Google', {}, false)
+  const input = node('', { value: 'Unlink Microsoft' })
+  const doc = { querySelectorAll: selector => {
+    if (selector === '[') throw new SyntaxError('bad selector')
+    return { button: [unlink, keep, mobile, input], '.card': [keep], '.none': [] }[selector]
+  } }
+  assert.equal(findTarget(doc, { selector: 'button', text: 'unlink  google' }), unlink) // the hidden copy does not count
+  assert.equal(findTarget(doc, { selector: 'button', text: 'Microsoft' }), input)
+  assert.equal(findTarget(doc, { selector: '.card' }), keep)
+  assert.equal(findTarget(doc, { selector: 'button', text: 'Unlink' }), null) // two matches
+  assert.equal(findTarget(doc, { selector: 'button' }), null)
+  assert.equal(findTarget(doc, { selector: '.none' }), null)
+  assert.equal(findTarget(doc, { selector: '[' }), null)
 })

@@ -80,5 +80,16 @@
     return 'filled'
   }
 
-  globalThis.RW_DOM = { buildSelector, roleOf, textOf, describeElement, fillField }
+  // The element a point of the scenario names: the one visible match of its selector whose text
+  // holds `text` (case ignored). None or several: null, rather than the wrong element.
+  function findTarget (doc, { selector, text }) {
+    let found = []
+    try { found = [...doc.querySelectorAll(selector)] } catch { return null }
+    const wanted = clean(text).toLowerCase()
+    const matches = found.filter(el => el.getClientRects().length > 0 &&
+      (!wanted || clean([el.innerText, el.getAttribute('aria-label'), el.getAttribute('value')].join(' ')).toLowerCase().includes(wanted)))
+    return matches.length === 1 ? matches[0] : null
+  }
+
+  globalThis.RW_DOM = { buildSelector, roleOf, textOf, describeElement, fillField, findTarget }
 })()

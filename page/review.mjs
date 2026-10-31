@@ -8,7 +8,8 @@ const entryFor = step => ({
   comments: [],
   logs: [],
   requests: [],
-  dropped: { errors: 0, warnings: 0, requests: 0 }
+  dropped: { errors: 0, warnings: 0, requests: 0 },
+  missedTargets: []
 })
 
 const APP_KINDS = ['element', 'text', 'zone']
@@ -41,6 +42,7 @@ export function mergeState (saved, round, steps, extraSteps = []) {
       entry.logs = old.logs ?? []
       entry.requests = old.requests ?? []
       entry.dropped = { errors: 0, warnings: 0, requests: 0, ...old.dropped }
+      entry.missedTargets = (old.missedTargets ?? []).filter(pid => pointIds.includes(pid))
     }
     entries[id] = entry
   }
@@ -150,6 +152,12 @@ export function goToStep (s, stepId) {
   return i === -1 ? s : { ...s, current: i }
 }
 
+// A point whose "Show" found nothing goes back to Claude with the review; a later success clears it.
+export const setTargetFound = (s, stepId, pointId, found) => withEntry(s, stepId, e => {
+  const others = (e.missedTargets ?? []).filter(id => id !== pointId)
+  return { ...e, missedTargets: found ? others : [...others, pointId] }
+})
+
 export const removeComment = (s, stepId, commentId) =>
   withEntry(s, stepId, e => ({ ...e, comments: e.comments.filter(c => c.id !== commentId) }))
 
@@ -192,16 +200,15 @@ export function buildReview (s, now) {
     steps: s.order.map(stepId => {
       const e = s.entries[stepId]
       const points = Object.fromEntries(Object.keys(e.checked).map(id => [id, pointStatus(e, id)]))
-      return { stepId, status: stepStatus(e), points, comments: e.comments, logs: e.logs ?? [], requests: e.requests ?? [] }
+      return { stepId, status: stepStatus(e), points, comments: e.comments, logs: e.logs ?? [], requests: e.requests ?? [], missedTargets: e.missedTargets ?? [] }
     })
   }
 }
 
 export const isFinish = review => review.steps.every(step => step.status === 'validated')
 
-// Where the first step of a round starts in the app: its `start` path, else its `path`.
-export function startUrl (scenario) {
-  const step = scenario.steps[0]
-  const path = step.start?.startsWith('/') ? step.start : step.path ?? '/'
-  return new URL(path, scenario.app.baseUrl).href
-}
+// The screen of a step in the app: its `start` path, else its `path` (null: no screen).
+export const stepPage = step => step.start?.startsWith('/') ? step.start : step.path ?? null
+
+// Where the first step of a round starts in the app.
+export const startUrl = scenario => new URL(stepPage(scenario.steps[0]) ?? '/', scenario.app.baseUrl).href

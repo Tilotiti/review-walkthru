@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { validateReview } from '../scripts/lib/format.mjs'
 import {
   initialState, addComment, removeComment, togglePoint, goNext, goPrev, reopen,
-  pointStatus, stepStatus, counts, buildReview, isFinish, mergeState, setDraft, draftKey,
+  pointStatus, stepStatus, counts, buildReview, isFinish, mergeState, setDraft, draftKey, setTargetFound,
   nextCommentId, addAppComment, setCapture, addLog, addRequest, issues, appComments, pinsFor, prefillFields, detectTarget, goToStep
 } from '../page/review.mjs'
 import { r1, r2, clone } from './helpers.mjs'
@@ -60,6 +60,21 @@ test('counts and buildReview', () => {
   assert.deepEqual(r.steps.map(x => x.status), ['not_reached', 'commented', 'not_reached'])
   assert.deepEqual(r.steps[0].points, { sort: 'validated', filter: 'not_seen', search: 'not_seen' })
   assert.equal(r.submittedAt, '2026-10-31T14:02:00.000Z')
+})
+
+test('a missed target goes back to Claude until a later Show finds it', () => {
+  let s = setTargetFound(initialState(1, steps), 'clients-list', 'filter', false)
+  s = setTargetFound(s, 'clients-list', 'sort', false)
+  s = setTargetFound(s, 'clients-list', 'filter', false)
+  assert.deepEqual(s.entries['clients-list'].missedTargets, ['sort', 'filter'])
+  s = setTargetFound(s, 'clients-list', 'sort', true)
+  const r = buildReview(s, new Date())
+  assert.deepEqual(r.steps[0].missedTargets, ['filter'])
+  assert.deepEqual(validateReview(r, { round: 1, steps }), [])
+  r.steps[0].missedTargets = ['ghost']
+  assert.ok(validateReview(r, { round: 1, steps }).some(e => e.includes('missedTargets')))
+  const kept = mergeState(s, 1, [{ ...steps[0], points: steps[0].points.filter(p => p.id !== 'filter') }])
+  assert.deepEqual(kept.entries['clients-list'].missedTargets, [])
 })
 
 test('isFinish, reopen and blank comments', () => {
