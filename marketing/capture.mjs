@@ -18,13 +18,14 @@ await buildSite({ root, out: built })
 mkdirSync(join(root, 'site', 'img'), { recursive: true })
 mkdirSync(store, { recursive: true })
 
-// /_compose/* comes from marketing/compose; everything else from site/ (fresh images) then the build (the demo).
+// /_compose/* comes from marketing/compose, /_extension/* from extension/ (its overlay and crop run in the
+// compositions); everything else from site/ (fresh images) then the build (the demo).
 const server = createServer(async (req, res) => {
   let path = normalize(decodeURIComponent(new URL(req.url, 'http://x').pathname))
   if (path.endsWith('/')) path += 'index.html'
-  const candidates = path.startsWith('/_compose/')
-    ? [join(root, 'marketing', 'compose', path.slice('/_compose/'.length))]
-    : [join(root, 'site', path), join(built, path)]
+  const candidates = path.startsWith('/_compose/') ? [join(root, 'marketing', 'compose', path.slice('/_compose/'.length))]
+    : path.startsWith('/_extension/') ? [join(root, 'extension', path.slice('/_extension/'.length))]
+      : [join(root, 'site', path), join(built, path)]
   const file = candidates.find(f => existsSync(f) && statSync(f).isFile())
   if (!file) { res.writeHead(404).end(); return }
   res.writeHead(200, { 'Content-Type': TYPES[extname(file)] ?? 'application/octet-stream', 'Cache-Control': 'no-store' }).end(await readFile(file))
@@ -33,11 +34,15 @@ await new Promise(resolve => server.listen(0, '127.0.0.1', resolve))
 const base = `http://127.0.0.1:${server.address().port}`
 const compose = (page, query = '') => `${base}/_compose/${page}${query}`
 
-// Order matters: later compositions embed the images the first ones produce.
+// Order matters: later compositions embed the images the first ones produce. Images written to the
+// build only serve the compositions, so they are made on every run, even a filtered one.
 const jobs = [
-  { url: compose('window.html', '?round=1&state=commented'), out: join(root, 'site/img/hero.png'), width: 1280, height: 800, scale: 2, script: 'window.ready' },
+  // The app half of window.html, cut around the status filter.
+  { url: compose('capture.html'), out: join(built, 'img/capture-status.png'), width: 735, height: 742, scale: 2, script: 'window.ready', clip: 'window.clip' },
+  { url: compose('window.html', '?round=1&state=typing'), out: join(root, 'site/img/hero.png'), width: 1280, height: 800, scale: 2, script: 'window.ready' },
+  { url: compose('window.html', '?round=1&state=app'), out: join(built, 'img/app-comment.png'), width: 1280, height: 800, scale: 2, script: 'window.ready' },
   { url: compose('window.html', '?round=2&state=fresh'), out: join(root, 'site/img/next-round.png'), width: 1280, height: 800, scale: 2, script: 'window.ready' },
-  { url: compose('review.html', '?round=1&state=commented&frame=points'), out: join(root, 'site/img/points.png'), width: 520, height: 400, scale: 2, script: 'window.ready' },
+  { url: compose('review.html', '?round=1&state=point&frame=points'), out: join(root, 'site/img/points.png'), width: 520, height: 400, scale: 2, script: 'window.ready' },
   { url: compose('store-1.html'), out: join(store, 'screenshot-1.png'), width: 1280, height: 800 },
   { url: compose('store-2.html'), out: join(store, 'screenshot-2.png'), width: 1280, height: 800 },
   { url: compose('store-3.html'), out: join(store, 'screenshot-3.png'), width: 1280, height: 800 },
@@ -51,7 +56,7 @@ const jobs = [
 ]
 const only = process.argv[2]
 try {
-  for (const job of jobs.filter(job => !only || job.out.includes(only))) console.log(await shoot(job))
+  for (const job of jobs.filter(job => !only || job.out.includes(only) || job.out.startsWith(built))) console.log(await shoot(job))
 } finally {
   server.close()
 }

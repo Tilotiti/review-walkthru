@@ -21,18 +21,38 @@
     <div class="tab"><b></b>Clients · Fernhill CRM</div><div class="tab"><img src="/demo/favicon.svg" alt="">Review · PR #128</div></div>
   <div class="split"><iframe id="app" title="App"></iframe><iframe id="review" title="Review"></iframe></div>
 <script type="module">
-  // ?round=1|2 picks the round; ?state=fresh|commented sets what the reviewer has done.
-  import { seedReview, settled } from './seed.mjs'
+  // ?round=1|2 picks the round; ?state= sets what the reviewer has done (seed.mjs):
+  // typing shows the extension's bubble on the status filter, app its pin and the comment in the review.
+  import { seedReview, settled, appReady, overlay, COMMENT, TARGET, CAPTURE } from './seed.mjs'
   const q = new URLSearchParams(location.search)
   const round = Number(q.get('round') ?? 1)
   const app = document.getElementById('app')
   const review = document.getElementById('review')
+  const state = q.get('state') ?? 'app'
+  const appLoaded = new Promise(resolve => app.addEventListener('load', resolve, { once: true }))
   // Round 2 ships the fix: the list starts on Active.
   app.src = round === 2 ? '/demo/app/clients/?status=active' : '/demo/app/clients/'
   window.ready = (async () => {
-    await seedReview(round, q.get('state') ?? 'commented')
+    await seedReview(round, state)
     review.src = `/demo/?round=${round}`
     const doc = await settled(review)
+    appReady(review)
+    await appLoaded
+    const rw = await overlay(app)
+    const status = app.contentDocument.getElementById('status')
+    // The bubble as the context menu's "Comment on this element" opens it: without the comment mode's bar,
+    // which the site's terminal card would cover.
+    if (state === 'typing') {
+      rw.openBubble({ near: status.getBoundingClientRect(), target: `${TARGET.text} · ${TARGET.selector}`, capture: CAPTURE, onSubmit () {} })
+      const area = app.contentDocument.querySelector('review-walkthru-overlay').shadowRoot.querySelector('textarea')
+      area.value = COMMENT
+      area.setSelectionRange(COMMENT.length, COMMENT.length)
+    }
+    if (state === 'app') {
+      rw.setPins([{ n: 1, el: status }])
+      // Down to the comment, from the point whose doubt it answers.
+      review.contentWindow.scrollTo(0, doc.querySelector('[data-point="filter"]').offsetTop)
+    }
     // Round 2: show which steps were skipped, and why.
     for (const details of doc.querySelectorAll('details')) if (details.querySelector('summary')?.textContent.includes('Skipped')) details.open = true
   })()

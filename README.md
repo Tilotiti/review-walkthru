@@ -21,7 +21,7 @@ A Claude Code plugin that turns a pull request into a real acceptance test: ever
 
 </div>
 
-![Chrome split view: a client list app on the left, the Review Walkthru page on the right with one point validated and one point commented](site/img/hero.png)
+![Chrome split view: a client list app on the left with a comment bubble open on its status filter, the Review Walkthru page on the right with one point validated and the step's console errors](site/img/hero.png)
 
 ## Why
 

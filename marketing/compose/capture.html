@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="compose.css">
+<style>
+  iframe { border: 0; width: 100%; height: 100%; display: block; }
+  .outline { position: fixed; border: 2px solid #ff9f0a; }
+</style>
+</head>
+<body>
+  <iframe id="app" title="App" src="/demo/app/clients/"></iframe>
+  <div class="outline"></div>
+<script type="module">
+  // The capture the extension attaches to a comment on the status filter: the app half cut around
+  // the element with the extension's own crop (extension/capture.js), the element outlined.
+  // The viewport is the size of the app half in window.html; window.clip is the part to keep.
+  import { cropBox } from '/_extension/capture.js'
+  const app = document.getElementById('app')
+  window.ready = new Promise(resolve => app.addEventListener('load', resolve, { once: true })).then(() => {
+    const r = app.contentDocument.getElementById('status').getBoundingClientRect()
+    // The extension strokes the outline on the element's edge: half outside, half inside.
+    Object.assign(document.querySelector('.outline').style, { left: `${r.x - 1}px`, top: `${r.y - 1}px`, width: `${r.width + 2}px`, height: `${r.height + 2}px` })
+    const box = cropBox(r, { width: innerWidth, height: innerHeight }, 1)
+    window.clip = { x: box.sx, y: box.sy, width: box.sw, height: box.sh }
+  })
+</script>
+</body>
+</html>
