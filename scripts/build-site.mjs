@@ -5,7 +5,7 @@ import { cp, rm } from 'node:fs/promises'
 import { join } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
-const PAGE_FILES = ['app.mjs', 'review.mjs', 'i18n.mjs', 'style.css', 'favicon.svg']
+const PAGE_FILES = ['app.mjs', 'review.mjs', 'bridge.mjs', 'i18n.mjs', 'style.css', 'favicon.svg']
 
 export async function buildSite ({ root, out }) {
   await cp(join(root, 'site'), out, { recursive: true })

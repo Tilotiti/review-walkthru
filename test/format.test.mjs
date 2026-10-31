@@ -92,3 +92,82 @@ test('validateReview v2', () => {
     comments: [{ id: 'r1-k2', text: 'Global', anchor: { kind: 'step' } }] }] }
   assert.deepEqual(validateReview(stepComment, ctx), [])
 })
+
+test('prefill entries', () => {
+  const ok = clone(r1); ok.steps[1].prefill = [
+    { selector: 'input[name=name]', value: 'Bistro Test' },
+    { selector: 'input[name=vip]', value: true },
+    { selector: 'input[name=_username]', credential: 'admin', field: 'login' }
+  ]
+  assert.deepEqual(validateScenario(ok), [])
+  const cases = [
+    [{ value: 'x' }, 'selector'],
+    [{ selector: 'a' }, 'value or credential'],
+    [{ selector: 'a', value: 'x', credential: 'admin', field: 'login' }, 'value or credential'],
+    [{ selector: 'a', credential: 'ghost', field: 'login' }, 'unknown prerequisite'],
+    [{ selector: 'a', credential: 'admin', field: 'token' }, 'field'],
+    [{ selector: 'a', value: 3 }, 'value']
+  ]
+  for (const [entry, word] of cases) {
+    const s = clone(r1); s.steps[1].prefill = [entry]
+    assert.ok(validateScenario(s).some(e => e.includes('prefill') && e.includes(word)), JSON.stringify(entry))
+  }
+})
+
+test('next.detect needs a valid regular expression', () => {
+  const ok = clone(r1); ok.steps[0].next.detect = { urlMatches: '^/clients/new$' }
+  assert.deepEqual(validateScenario(ok), [])
+  const bad = clone(r1); bad.steps[0].next.detect = { urlMatches: '(' }
+  assert.ok(validateScenario(bad).some(e => e.includes('next.detect.urlMatches')))
+  const notText = clone(r1); notText.steps[0].next.detect = { urlMatches: 3 }
+  assert.ok(validateScenario(notText).some(e => e.includes('next.detect.urlMatches')))
+})
+
+// A review step whose comments were made on the app (element, text, zone) and on a point with a quote.
+const appUrl = 'http://localhost:8000/clients'
+const appReview = () => ({ format: REVIEW_FORMAT, round: 1, submittedAt: '2026-10-31T14:02:00Z', steps: [{
+  stepId: 'clients-list', status: 'commented', points: { sort: 'commented', filter: 'not_seen', search: 'not_seen' },
+  comments: [
+    { id: 'r1-k1', text: 'Which cost?', anchor: { kind: 'point', id: 'sort', quote: 'A sort to add.' } },
+    { id: 'r1-k2', text: 'What does it count?', anchor: { kind: 'element', url: appUrl,
+      element: { selector: 'table thead th:nth-of-type(3)', unique: true, tag: 'th', role: 'columnheader', text: 'People' },
+      quote: null, rect: { x: 412, y: 188, width: 96, height: 32 }, capture: 'captures/r1-k2.png',
+      context: { consoleErrors: 0, lastRequest: { method: 'GET', url: appUrl, status: 200 } } } },
+    { id: 'r1-k3', text: 'Cut label.', anchor: { kind: 'text', url: appUrl, quote: 'Search a cli',
+      element: { selector: 'input[name=q]', unique: true, tag: 'input', role: 'textbox', text: 'Search a client' },
+      rect: { x: 10, y: 20, width: 120, height: 18 }, capture: null, context: { consoleErrors: 1, lastRequest: null } } },
+    { id: 'r1-k4', text: 'Too much space.', anchor: { kind: 'zone', url: appUrl, element: null, quote: null,
+      rect: { x: 0, y: 300, width: 320, height: 140 }, capture: null } }
+  ],
+  logs: [
+    { level: 'error', text: 'TypeError: x is undefined', url: appUrl, at: '2026-10-31T14:01:12Z' },
+    { level: 'warning', text: 'Deprecated API', url: appUrl, at: '2026-10-31T14:01:13Z' }
+  ],
+  requests: [{ method: 'POST', url: appUrl, status: 500, error: null, type: 'main_frame', at: '2026-10-31T14:01:20Z' }]
+}] })
+const appCtx = { round: 1, steps: r1.steps, hasCapture: name => name === 'captures/r1-k2.png' }
+
+test('review accepts app comments, quotes, logs and requests', () => {
+  assert.deepEqual(validateReview(appReview(), appCtx), [])
+})
+
+test('review rejects malformed app comments', () => {
+  const cases = [
+    [r => { r.steps[0].comments[1].anchor.url = 'javascript:x' }, 'url'],
+    [r => { r.steps[0].comments[1].anchor.capture = '../state.json' }, 'capture'],
+    [r => { r.steps[0].comments[1].anchor.capture = 'captures/r1-k9.png' }, 'capture'],
+    [r => { delete r.steps[0].comments[1].anchor.rect.width }, 'rect'],
+    [r => { r.steps[0].comments[1].anchor.element = null }, 'element'],
+    [r => { r.steps[0].comments[2].anchor.quote = '' }, 'quote'],
+    [r => { r.steps[0].comments[1].anchor.context.consoleErrors = -1 }, 'context'],
+    [r => { r.steps[0].logs[0].level = 'info' }, 'level'],
+    [r => { r.steps[0].logs = Array(101).fill(r.steps[0].logs[0]) }, 'logs'],
+    [r => { r.steps[0].requests[0].status = '500' }, 'status'],
+    [r => { r.steps[0].requests[0].at = 'yesterday' }, 'at']
+  ]
+  for (const [change, word] of cases) {
+    const r = appReview(); change(r)
+    const errors = validateReview(r, appCtx)
+    assert.ok(errors.some(e => e.includes(word)), `${change}: ${errors.join(' | ')}`)
+  }
+})

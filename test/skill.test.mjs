@@ -20,3 +20,22 @@ test('plugin.json carries every directory listing link, and site links have a pa
     }
   }
 })
+
+// Every command and scenario field the scripts handle is explained to Claude.
+test('SKILL.md covers the extension, prefill, detection, captures and the console', () => {
+  const skill = readFileSync(new URL('../skills/review-walkthru/SKILL.md', import.meta.url), 'utf8')
+  for (const words of ['run.mjs" extension', '"prefill"', '"detect"', '"credential"', 'captures/', '`logs`', '`requests`', '"unreadable"']) {
+    assert.ok(skill.includes(words), words)
+  }
+  assert.doesNotMatch(skill, /Open the app alongside/)
+})
+
+// Console errors reached Claude but not the reviewer: the report is its own step, with a fixed shape.
+test('SKILL.md makes the console report a step of its own', () => {
+  const skill = readFileSync(new URL('../skills/review-walkthru/SKILL.md', import.meta.url), 'utf8')
+  const review = skill.slice(skill.indexOf('### `REVIEW <file>`'), skill.indexOf('### `FINISH <file>`'))
+  assert.match(review, /\n\d\. \*\*Report the app's console and network\*\*/)
+  assert.match(review, /No console error or failed request/)
+  assert.match(review, /warnings/i)
+  assert.match(review, /predates the PR/)
+})

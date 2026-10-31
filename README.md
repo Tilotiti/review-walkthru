@@ -52,7 +52,7 @@ A 7-screen feature in a production SaaS:
 /plugin install review-walkthru@review-walkthru
 ```
 
-**2. Add the [Chrome extension](https://chromewebstore.google.com/detail/kjigknfmabifbopeelbckkilheemoedh)** (pending Google review). It opens your app next to the review page in split view, and sends the page's links to the app's half. It needs Chrome 155 or later. Without it, the page shows an "Open the app alongside" button and you arrange the split view yourself.
+**2. Add the [Chrome extension](https://chromewebstore.google.com/detail/kjigknfmabifbopeelbckkilheemoedh)** (pending Google review). The review runs in it: it opens your app next to the review page in split view, lets you comment right on the app, shows the app's console errors in each step, and fills forms with the data Claude picked. It needs Chrome 155 or later. `/review-walkthru` checks that Chrome has it and opens its Store page if not.
 
 **3. Review a pull request:**
 
@@ -66,7 +66,7 @@ You also need macOS or Linux, Node.js 18 or later, and the GitHub CLI (`gh`) sig
 
 1. **Run** `/review-walkthru <PR>`. Claude reads the PR, its commits and the conversation that built it. It starts the app, creates the test accounts, and writes the walkthrough.
 2. **Walk through.** Chrome opens the review next to the app. Each step lists what to do, and the decisions and doubts behind it.
-3. **Send.** Check a point to validate it, or comment on it. One click sends the whole review to Claude Code, mid-round if you want.
+3. **Send.** Check a point to validate it, or comment on it. To point at the app itself, press ⌥⇧C (Alt+Shift+C on Windows and Linux), then click an element, select a text or frame an area: Claude gets a capture of it and the app's console errors. One click sends the whole review to Claude Code, mid-round if you want.
 4. **Fix and repeat.** Claude fixes in the conversation and offers a next round with only the steps left to check. When a round passes with no comment, Claude pushes, after your yes.
 
 The argument takes a PR URL or number: `/review-walkthru https://github.com/owner/repo/pull/123`, `/review-walkthru 123`. Without one, it takes the last PR created in the session. `--restart` starts over from the PR head; without it, the command resumes the review where it stopped. The review page follows your browser's language, English or French.
@@ -88,7 +88,7 @@ No. Claude commits its fixes in a worktree and pushes only after you say yes in 
 <details>
 <summary><b>Where does my data go?</b></summary>
 
-Reviews stay on your machine, in `~/.claude/plugins/data/review-walkthru-review-walkthru/`: the walkthrough and review of each round, the test accounts and the PR worktree under `runs/`, and what Claude learned about starting each project under `projects/`. The Chrome extension collects nothing. The review you send goes to Claude Code, like any other prompt. Details on the [privacy page](https://review-walkthru.henry.pro/privacy.html).
+Reviews stay on your machine, in `~/.claude/plugins/data/review-walkthru-review-walkthru/`: the walkthrough and review of each round, the test accounts and the PR worktree under `runs/`, and what Claude learned about starting each project under `projects/`. The Chrome extension reads your app only during a review (what you comment on, a capture of it, the console errors and failed requests) and hands it to the local review page, never to a server. The review you send goes to Claude Code, like any other prompt. Details on the [privacy page](https://review-walkthru.henry.pro/privacy.html).
 </details>
 
 <details>

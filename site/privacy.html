@@ -23,11 +23,20 @@
       <p>Last updated on October 31, 2026.</p>
 
       <h2>The Chrome extension</h2>
-      <p>The extension collects no data. It sends nothing to any server, stores nothing, and contains no analytics.</p>
-      <p>It runs on pages served from <code>http://127.0.0.1</code> and acts only on the review page that the plugin starts on your computer. From that page it reads one value, the address of your local app, and opens that address next to the page in a Chrome split view. When you click a link to the app, it loads the link in the app's half of the split.</p>
+      <p>The extension sends nothing to any server and contains no analytics. It works only during a review, between the review page that the plugin serves on <code>127.0.0.1</code> and your app next to it.</p>
+      <p>On the review page, it reads the address of your app and opens it next to the page in a Chrome split view. When you click a link to the app, it loads the link in the app's half.</p>
+      <p>In your app's tab, and only while that tab is the app of a running review, it reads:</p>
+      <ul>
+        <li>the element, the selected text or the area you comment on, its address in the page and its text;</li>
+        <li>a capture of that area, taken when you comment;</li>
+        <li>the errors and warnings of the app's console, and the requests that failed;</li>
+        <li>the address the app reaches, to move the review to the next step.</li>
+      </ul>
+      <p>It hands all of this to the review page, which stores it with your review on your computer. When you ask, it also fills a form of the app with the values from the review.</p>
+      <p>The extension runs on <code>localhost</code>, <code>*.localhost</code> and <code>127.0.0.1</code>. If your app runs on another host, the extension asks for that host once, and only after you click to allow it. It keeps the pairs of review and app tabs for the browser session, and nothing else.</p>
 
       <h2>The Claude Code plugin</h2>
-      <p>The plugin keeps each review in <code>~/.claude/plugins/data/</code> on your computer: the scenario, your comments, and the test accounts it created. A relay on <code>127.0.0.1</code> serves the review page; nothing else can reach it.</p>
+      <p>The plugin keeps each review in <code>~/.claude/plugins/data/</code> on your computer: the scenario, your comments with their captures and the console errors of each step, and the test accounts it created. A relay on <code>127.0.0.1</code> serves the review page; nothing else can reach it.</p>
       <p>The plugin uses your own GitHub CLI to read the pull request. It writes nothing on GitHub, and pushes fixes only after you approve them in the conversation.</p>
       <p>The review you send goes to Claude Code, which handles it like any other prompt, under the terms you accepted for Claude Code.</p>
 

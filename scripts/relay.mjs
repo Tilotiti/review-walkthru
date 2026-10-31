@@ -6,20 +6,24 @@
 import { createServer } from 'node:http'
 import { timingSafeEqual } from 'node:crypto'
 import { existsSync } from 'node:fs'
-import { readFile } from 'node:fs/promises'
+import { mkdir, readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { readState, currentRound, pageUrl, writeJson } from './lib/rundir.mjs'
+import { readState, currentRound, pageUrl, writeJson, writeFileAtomic } from './lib/rundir.mjs'
 import { validateReview } from './lib/format.mjs'
 import { isFinish } from '../page/review.mjs'
 
 const PAGE_DIR = fileURLToPath(new URL('../page/', import.meta.url))
-const MAX_BODY_BYTES = 1024 * 1024
+const MAX_REVIEW_BYTES = 4 * 1024 * 1024
+const MAX_CAPTURE_BYTES = 8 * 1024 * 1024
+const CAPTURE_ID = /^r(\d+)-k\d+$/
+const CAPTURE_FILE = /^r\d+-k\d+\.png$/
 const STATIC = {
   '': ['index.html', 'text/html; charset=utf-8'],
   'style.css': ['style.css', 'text/css; charset=utf-8'],
   'app.mjs': ['app.mjs', 'text/javascript; charset=utf-8'],
   'review.mjs': ['review.mjs', 'text/javascript; charset=utf-8'],
+  'bridge.mjs': ['bridge.mjs', 'text/javascript; charset=utf-8'],
   'i18n.mjs': ['i18n.mjs', 'text/javascript; charset=utf-8'],
   'favicon.svg': ['favicon.svg', 'image/svg+xml']
 }
@@ -51,32 +55,34 @@ function route (pathname) {
   return pathname.slice(prefix.length)
 }
 
-function readBody (req) {
+// The body as a Buffer, or null past the limit.
+function readBody (req, limit) {
   return new Promise((resolve, reject) => {
     const chunks = []
     let size = 0
     req.on('data', chunk => {
       size += chunk.length
-      if (size <= MAX_BODY_BYTES) chunks.push(chunk) // past the limit, drain without keeping
+      if (size <= limit) chunks.push(chunk) // past the limit, drain without keeping
     })
-    req.on('end', () => resolve(size > MAX_BODY_BYTES ? null : Buffer.concat(chunks).toString('utf8')))
+    req.on('end', () => resolve(size > limit ? null : Buffer.concat(chunks)))
     req.on('error', reject)
   })
 }
 
 async function acceptReview (req, res) {
   if (!String(req.headers['content-type']).startsWith('application/json')) return reply(res, 415, { error: 'Content-Type must be application/json' })
-  const raw = await readBody(req)
-  if (raw === null) return reply(res, 413, { error: 'body larger than 1 MiB' })
+  const raw = await readBody(req, MAX_REVIEW_BYTES)
+  if (raw === null) return reply(res, 413, { error: 'body larger than 4 MiB' })
   let review
-  try { review = JSON.parse(raw) } catch { return reply(res, 400, { error: 'body is not JSON' }) }
+  try { review = JSON.parse(raw.toString('utf8')) } catch { return reply(res, 400, { error: 'body is not JSON' }) }
 
   const round = await currentRound(dir)
   if (round.submitted || closing) return reply(res, 409, { error: `round ${round.round} was already sent` })
   const errors = validateReview(review, {
     round: round.round,
     steps: [...round.scenario.steps, ...round.skippedSteps],
-    required: round.scenario.steps.map(step => step.id)
+    required: round.scenario.steps.map(step => step.id),
+    hasCapture: name => existsSync(join(dir, name))
   })
   if (errors.length) return reply(res, 422, { errors })
 
@@ -103,6 +109,20 @@ async function acceptReview (req, res) {
   reply(res, 200, { ok: true, finish })
 }
 
+// The page uploads the capture of an app comment as soon as the comment is added:
+// localStorage could not keep the image until the review is sent.
+async function acceptCapture (req, res, id) {
+  if (!String(req.headers['content-type']).startsWith('image/png')) return reply(res, 415, { error: 'Content-Type must be image/png' })
+  const body = await readBody(req, MAX_CAPTURE_BYTES)
+  if (body === null) return reply(res, 413, { error: 'capture larger than 8 MiB' })
+  const round = await currentRound(dir)
+  if (round.submitted || closing) return reply(res, 409, { error: `round ${round.round} was already sent` })
+  if (Number(CAPTURE_ID.exec(id)[1]) !== round.round) return reply(res, 422, { error: `the capture id must belong to round ${round.round}` })
+  await mkdir(join(dir, 'captures'), { recursive: true })
+  await writeFileAtomic(join(dir, 'captures', `${id}.png`), body)
+  return reply(res, 200, { file: `captures/${id}.png` })
+}
+
 async function handle (req, res) {
   if (!allowedHosts.includes(req.headers.host)) return reply(res, 403, { error: 'forbidden host' })
   const target = route(new URL(req.url, 'http://127.0.0.1').pathname)
@@ -111,8 +131,19 @@ async function handle (req, res) {
   if (target === 'api/review') {
     return req.method === 'POST' ? acceptReview(req, res) : reply(res, 405, { error: 'POST only' })
   }
+  if (target.startsWith('api/capture/')) {
+    const id = target.slice('api/capture/'.length)
+    if (!CAPTURE_ID.test(id)) return reply(res, 404, { error: 'not found' })
+    return req.method === 'POST' ? acceptCapture(req, res, id) : reply(res, 405, { error: 'POST only' })
+  }
   if (req.method !== 'GET') return reply(res, 405, { error: 'GET only' })
   if (target === 'api/round') return reply(res, 200, await currentRound(dir))
+  if (target.startsWith('captures/')) {
+    const name = target.slice('captures/'.length)
+    const file = join(dir, 'captures', name)
+    if (!CAPTURE_FILE.test(name) || !existsSync(file)) return reply(res, 404, { error: 'not found' })
+    return reply(res, 200, await readFile(file), 'image/png')
+  }
   const file = STATIC[target]
   if (!file) return reply(res, 404, { error: 'not found' })
   return reply(res, 200, await readFile(join(PAGE_DIR, file[0])), file[1])

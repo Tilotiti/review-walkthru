@@ -1,0 +1,21 @@
+{
+  "extName": { "message": "Review Walkthru" },
+  "extDescription": { "message": "Recette d'une pull request étape par étape, à côté de ton app : commente un élément et vois les erreurs de sa console." },
+  "actionTitle": { "message": "Review Walkthru : commenter l'app" },
+  "commandComment": { "message": "Commenter l'app" },
+  "menuElement": { "message": "Commenter cet élément" },
+  "menuSelection": { "message": "Commenter « %s »" },
+  "grantTitle": { "message": "Autoriser Review Walkthru sur cette app" },
+  "grantBody": { "message": "Ton app tourne sur $ORIGIN$. Autorise Review Walkthru à y fonctionner pour commenter l'app, voir sa console et remplir ses formulaires. Chrome retient ton choix.", "placeholders": { "origin": { "content": "$1" } } },
+  "grantButton": { "message": "Autoriser" },
+  "grantDone": { "message": "C'est fait : l'app se recharge avec Review Walkthru." },
+  "grantRefused": { "message": "Chrome n'a pas donné l'autorisation. Tu peux réessayer." },
+  "modeBar": { "message": "Mode commentaire : clique sur un élément ou trace une zone. Échap pour sortir." },
+  "bubblePlaceholder": { "message": "Ton commentaire" },
+  "bubbleAdd": { "message": "Ajouter" },
+  "bubbleCancel": { "message": "Annuler" },
+  "bubbleShortcut": { "message": "⌘↵ ou Ctrl+↵ pour ajouter" },
+  "noCapture": { "message": "Sans capture : appuie une fois sur $KEY$ dans l'app pour en joindre une.", "placeholders": { "key": { "content": "$1" } } },
+  "zoneLabel": { "message": "Zone $W$ × $H$", "placeholders": { "w": { "content": "$1" }, "h": { "content": "$2" } } },
+  "selectionButton": { "message": "Commenter" }
+}

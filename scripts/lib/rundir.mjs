@@ -1,5 +1,5 @@
-// The work folder of one review: state.json, scenario-<n>.json,
-// review-<n>.json and credentials.json, outside the reviewed repository.
+// The work folder of one review: state.json, scenario-<n>.json, review-<n>.json,
+// credentials.json and captures/, outside the reviewed repository.
 import { randomBytes } from 'node:crypto'
 import { createServer } from 'node:net'
 import { existsSync } from 'node:fs'
@@ -13,11 +13,13 @@ export const pageUrl = ({ port, token }) => `http://127.0.0.1:${port}/${token}/`
 
 const readJson = async path => JSON.parse(await readFile(path, 'utf8'))
 
-export async function writeJson (path, value) {
+export async function writeFileAtomic (path, data) {
   const tmp = `${path}.${process.pid}.tmp`
-  await writeFile(tmp, JSON.stringify(value, null, 2) + '\n')
+  await writeFile(tmp, data)
   await rename(tmp, path)
 }
+
+export const writeJson = (path, value) => writeFileAtomic(path, JSON.stringify(value, null, 2) + '\n')
 
 export function freePort () {
   return new Promise((resolve, reject) => {
@@ -49,6 +51,7 @@ export async function initRun (dir, { restart = false } = {}) {
     for (const name of await readdir(dir)) {
       if (/^(scenario|review)-\d+\.json$/.test(name)) await rm(join(dir, name))
     }
+    await rm(join(dir, 'captures'), { recursive: true, force: true })
     state.round = 0
     await writeState(dir, state)
     return { state, resumed: false }

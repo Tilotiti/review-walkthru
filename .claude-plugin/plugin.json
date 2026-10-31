@@ -1,7 +1,7 @@
 {
   "name": "review-walkthru",
   "displayName": "Review Walkthru",
-  "version": "0.4.2",
+  "version": "0.5.0",
   "description": "Turns a pull request into a real acceptance test: every screen, every decision Claude made, checked in your running app.",
   "author": { "name": "Thibault Henry", "url": "https://github.com/Tilotiti" },
   "license": "MIT",

@@ -56,3 +56,14 @@ test('the illustrative terminal in the hero is labeled for everyone', () => {
 test('the README header is centered', () => {
   assert.match(read('README.md'), /^<div align="center">/)
 })
+
+test('the extension is required: no manual fallback in the copy', () => {
+  for (const file of [...pages, 'README.md']) assert.doesNotMatch(read(file), /Open the app alongside/, file)
+})
+
+test('the privacy page says what the extension reads', () => {
+  const privacy = read('site/privacy.html')
+  assert.match(privacy, /capture/)
+  assert.match(privacy, /console/)
+  assert.doesNotMatch(privacy, /collects no data/)
+})

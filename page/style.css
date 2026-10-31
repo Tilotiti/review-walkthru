@@ -159,6 +159,9 @@ a.button.go { display: inline-flex; gap: 6px; align-items: center; border: 1px s
 .nav .primary { flex: 1; }
 .review { display: flex; gap: 10px; align-items: center; justify-content: space-between; }
 
+.gate { padding: 48px 28px; }
+.gate p { color: var(--muted); max-width: 46ch; }
+.gate .actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 18px; }
 .done { display: flex; align-items: center; justify-content: center; padding: 48px 24px; text-align: center; font-size: 18px; }
 
 /* Controls */
@@ -185,3 +188,23 @@ a.button:hover, a.button:focus, a.button:active { text-decoration: none; }
 @media (prefers-reduced-motion: reduce) {
   .pt { transition: none; }
 }
+
+/* MVP 2: what the extension brings from the app */
+.issues { margin: 10px 0 0; font-size: 13px; }
+.issues summary { cursor: pointer; color: var(--warn); font-weight: 500; }
+.issues ul { list-style: none; margin: 6px 0 0; padding: 0; max-height: 180px; overflow: auto; }
+.issues li { display: flex; gap: 8px; padding: 3px 0; border-top: 1px solid var(--line); word-break: break-word; font: 12px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace; }
+.issues li.error { color: var(--warn); }
+.issues .when { flex: none; color: var(--muted); }
+.tools { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 12px; }
+.tools .hint { flex-basis: 100%; margin: 0; }
+.tools button { display: inline-flex; gap: 6px; align-items: center; }
+.cm-txt.app { align-items: flex-start; }
+.cm-txt .grow { flex: 1; min-width: 0; }
+.pin-n { flex: none; width: 20px; height: 20px; border-radius: 50%; background: #ff9f0a; color: #fff; font-size: 11px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; font-variant-numeric: tabular-nums; }
+.target { word-break: break-word; }
+.shot { display: block; height: 96px; max-width: 100%; object-fit: contain; object-position: left; margin-top: 6px; border: 1px solid var(--line); border-radius: 6px; background: var(--soft); }
+.quote { margin: 0 0 4px; padding-left: 8px; border-left: 2px solid var(--line); color: var(--muted); font-size: 13px; }
+.end-issues { margin: 0 0 8px; }
+.sel-comment { position: fixed; z-index: 10; display: inline-flex; gap: 6px; align-items: center; box-shadow: 0 4px 14px rgba(0, 0, 0, .18); }
+.sel-comment[hidden] { display: none; }
