@@ -112,7 +112,10 @@ section.wrap { margin-top: 140px; }
 /* Why: three pains and their answers, next to the product showing them */
 .pains { display: grid; grid-template-columns: 1fr 0.9fr; gap: 56px; align-items: center; margin-top: 48px; }
 .pains ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 30px; }
-.pains li { padding-left: 22px; border-left: 2px solid var(--line); }
+/* Each pain comes with its answer: a green check, as on the rail. */
+.pains li { position: relative; padding-left: 40px; }
+.pains li::before { content: ""; position: absolute; left: 0; top: 3px; width: 24px; height: 24px; border-radius: 50%; background: var(--green); }
+.pains li::after { content: ""; position: absolute; left: 7px; top: 10px; width: 9px; height: 5px; border: solid #fff; border-width: 0 0 2px 2px; transform: rotate(-45deg); }
 .pains li p { margin: 0; }
 .pains .pain { font-weight: 600; font-size: 19px; letter-spacing: -0.01em; margin-bottom: 6px; }
 .proof { margin-top: 72px; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 32px; display: grid; grid-template-columns: 0.8fr 2fr; gap: 32px; }
@@ -144,7 +147,7 @@ section.wrap { margin-top: 140px; }
 
 /* Try it: the real page, playable */
 .demo { margin-top: 40px; }
-.tabs { height: 42px; display: flex; align-items: flex-end; gap: 2px; padding: 0 10px; background: var(--soft); }
+.tabs { height: 42px; display: flex; align-items: flex-end; gap: 2px; padding: 10px 10px 0; background: var(--soft); }
 .tabs i { width: 11px; height: 11px; border-radius: 50%; background: var(--line); margin: 0 4px 15px; }
 .tabs i:nth-child(3) { margin-right: 12px; }
 .tabs span { height: 32px; width: 230px; background: var(--surface); border-radius: 10px 10px 0 0; display: flex; align-items: center; gap: 8px; padding: 0 12px; font-size: 13px; color: var(--muted); }
@@ -155,7 +158,9 @@ section.wrap { margin-top: 140px; }
 .demo noscript img { width: 100%; }
 .demo-bar { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-top: 14px; }
 .demo-bar p { margin: 0; font-size: 14px; }
-.received { margin-top: 24px; background: var(--surface); border: 1px solid var(--line); border-left: 3px solid var(--green); border-radius: 14px; padding: 24px 28px; }
+.received { margin-top: 24px; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 24px 28px; }
+.received h3 { display: flex; align-items: center; gap: 10px; }
+.received h3::before { content: "✓"; display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: var(--green); color: #fff; font-size: 13px; }
 .received p { margin: 8px 0 0; color: var(--muted); }
 .received ul { margin: 12px 0 0; padding-left: 20px; }
 .received details { margin-top: 14px; }
