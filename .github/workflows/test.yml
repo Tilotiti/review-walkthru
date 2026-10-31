@@ -20,3 +20,16 @@ jobs:
         with:
           node-version: ${{ matrix.node }}
       - run: npm test
+
+  # A separate job keeps the required check names, test (18) and test (22), unchanged.
+  windows:
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        node: [18, 22]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ matrix.node }}
+      - run: npm test

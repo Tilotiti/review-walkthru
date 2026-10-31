@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { spawn } from 'node:child_process'
 import { request } from 'node:http'
 import { createServer } from 'node:net'
-import { mkdtemp, writeFile, readFile } from 'node:fs/promises'
+import { mkdtemp, mkdir, rm, writeFile, readFile } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -140,6 +140,29 @@ test('a round with no comment and every step validated is a FINISH', async () =>
   assert.equal(stdout.trim().split('\n').at(-1), `FINISH ${join(dir, 'review-1.json')}`)
 })
 
+// What the skill does on REVIEW: start the relay again at once, on the same port.
+test('the relay starts again on the same port right after a review', async () => {
+  child = startRelay(); await child.ready
+  await post(`/${token}/api/review`, JSON.stringify(review))
+  await child.done
+  child = startRelay(); await child.ready
+  assert.equal(JSON.parse((await get(`/${token}/api/round`)).body).submitted, true)
+})
+
+// On Windows an antivirus can hold the temp file and make the write fail: the page must
+// be able to send again, not get a 409 it reads as "sent".
+test('a review the relay could not write can be sent again', async () => {
+  child = startRelay(); await child.ready
+  const blocker = join(dir, `review-1.json.${child.pid}.tmp`) // writeJson's temp file
+  await mkdir(blocker)
+  assert.equal((await post(`/${token}/api/review`, JSON.stringify(review))).status, 500)
+  await rm(blocker, { recursive: true })
+  assert.equal((await post(`/${token}/api/review`, JSON.stringify(review))).status, 200)
+  const { code, stdout } = await child.done
+  assert.equal(code, 0)
+  assert.equal(stdout.trim().split('\n').at(-1), `REVIEW ${join(dir, 'review-1.json')}`)
+})
+
 test('a relay restarted on a submitted round answers 409', async () => {
   await writeFile(join(dir, 'review-1.json'), JSON.stringify(review))
   child = startRelay(); await child.ready
@@ -154,7 +177,7 @@ test('port busy exits with code 2', async () => {
     child = startRelay()
     const { code, stderr } = await child.done
     assert.equal(code, 2)
-    assert.match(stderr, new RegExp(`ERROR port ${port} already in use`))
+    assert.match(stderr, new RegExp(`ERROR port ${port} unavailable \\(EADDRINUSE\\)`))
   } finally {
     blocker.close()
   }
