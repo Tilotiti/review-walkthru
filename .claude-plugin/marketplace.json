@@ -5,7 +5,7 @@
     {
       "name": "review-walkthru",
       "source": "./",
-      "description": "Guided PR review in Chrome on the local app, with comments sent back to Claude."
+      "description": "Turns a pull request into a real acceptance test: every screen, every decision Claude made, checked in your running app."
     }
   ]
 }

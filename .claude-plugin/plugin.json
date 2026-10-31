@@ -1,7 +1,7 @@
 {
   "name": "review-walkthru",
   "version": "0.4.0",
-  "description": "Turns a pull request into a guided, step-by-step review of the locally running app, with comments sent back to Claude in one prompt.",
+  "description": "Turns a pull request into a real acceptance test: every screen, every decision Claude made, checked in your running app.",
   "author": { "name": "Thibault Henry" },
   "license": "MIT",
   "repository": "https://github.com/Tilotiti/review-walkthru",

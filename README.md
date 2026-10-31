@@ -1,62 +1,97 @@
-<p align="center"><img src="brand/logo.svg" width="72" alt=""></p>
+<p align="center"><img src="brand/logo.svg" width="64" alt=""></p>
 
 <h1 align="center">Review Walkthru</h1>
 
-<p align="center">Walk through a pull request in your running app, then let Claude fix what you flag.</p>
+<p align="center"><b>Don't merge what you haven't seen.</b><br>
+A Claude Code plugin that turns a pull request into a real acceptance test: every screen, every decision Claude made, checked in your running app.</p>
 
-<p align="center"><a href="https://review-walkthru.henry.pro">Website</a> · <a href="https://chromewebstore.google.com/detail/kjigknfmabifbopeelbckkilheemoedh">Chrome extension</a></p>
+<p align="center">
+  <a href="https://github.com/Tilotiti/review-walkthru/actions/workflows/test.yml"><img src="https://github.com/Tilotiti/review-walkthru/actions/workflows/test.yml/badge.svg" alt="Tests"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-17171c" alt="MIT license"></a>
+  <img src="https://img.shields.io/badge/Claude%20Code-plugin-2156d9" alt="Claude Code plugin">
+</p>
 
-![The app on the left, the Review Walkthru page on the right, in Chrome split view](site/screenshot.png)
+<p align="center">
+  <a href="https://review-walkthru.henry.pro"><b>Website</b></a> ·
+  <a href="https://review-walkthru.henry.pro/#try"><b>Try the live demo</b></a> ·
+  <a href="https://chromewebstore.google.com/detail/kjigknfmabifbopeelbckkilheemoedh">Chrome extension</a>
+</p>
 
-Review Walkthru is a Claude Code plugin. `/review-walkthru 123` starts the pull request's app on your machine and opens a review page beside it in Chrome. The page takes you through the change one step at a time: what the screen shows, which decisions the author made, which doubts Claude has, and what to test.
+![Chrome split view: a client list app on the left, the Review Walkthru page on the right with one point validated and one point commented](site/img/hero.png)
 
-You check or comment on each point, then send the whole review to Claude in one click. Claude fixes in the conversation and offers a next round with only the steps to recheck. When a round passes without comments, Claude pushes its fixes, once you agree.
+## Why
+
+Claude finishes a feature and hands you a long message: what to test, what it decided without you, what it left for later. You test from memory, switch between the chat and the browser, and send feedback one line at a time.
+
+Review Walkthru removes the three things that make that painful:
+
+- **You see everything that changed.** Claude writes a walkthrough that covers every visible change in the PR, screen by screen, in the order you use the app.
+- **You see every decision.** Each decision and each doubt sits next to the screen that shows it, with what it would cost to change.
+- **You stop going back and forth.** Your app and the review sit side by side in Chrome. Check each point, comment, and send everything back to Claude in one click. Claude fixes, then offers a next round with only what is left to check.
+
+### From a real review
+
+A 7-screen feature in a production SaaS:
+
+| Round | What happened |
+|---|---|
+| 1 | 19 decisions and 7 doubts surfaced across 7 steps and 18 points. 4 comments sent back. |
+| 2 | 1 comment left after Claude's fixes. |
+| 3 | 2 of 7 steps to recheck. No comment. Pushed. |
 
 ## Install
 
-In Claude Code:
+**1. Add the plugin** in Claude Code:
 
 ```
 /plugin marketplace add Tilotiti/review-walkthru
 /plugin install review-walkthru@review-walkthru
 ```
 
-Then add the [Chrome extension](https://chromewebstore.google.com/detail/kjigknfmabifbopeelbckkilheemoedh). It opens your app next to the review page in split view, and loads the page's links in the app's half. It needs Chrome 155 or later. Without it, the page shows an "Open the app alongside" button and you arrange the split view yourself.
+**2. Add the [Chrome extension](https://chromewebstore.google.com/detail/kjigknfmabifbopeelbckkilheemoedh)** (pending Google review). It opens your app next to the review page in split view, and sends the page's links to the app's half. It needs Chrome 155 or later. Without it, the page shows an "Open the app alongside" button and you arrange the split view yourself.
 
-You also need:
-
-- macOS or Linux (no Windows support yet);
-- Node.js 18 or later;
-- the GitHub CLI (`gh`), signed in with write access to the repo;
-- Google Chrome.
-
-`/review-walkthru` checks all of this at launch and lists what is missing.
-
-## Use
+**3. Review a pull request:**
 
 ```
-/review-walkthru https://github.com/owner/repo/pull/123
 /review-walkthru 123
-/review-walkthru 123 --restart
 ```
 
-Without an argument, it takes the last PR created in the session.
+You also need macOS or Linux, Node.js 18 or later, and the GitHub CLI (`gh`) signed in with write access to the repo. `/review-walkthru` checks all of this at launch and lists what is missing.
 
-- The first time on a project, Claude asks how to start the app, which database to use and which data to create. It remembers your answers for next time.
-- Each step splits into points: something to do or look at, with the decisions and doubts that go with it. Check a point to validate it, or comment on it. A point you neither check nor comment on comes back next round.
-- "Send to Claude" works at any time, even in the middle of a round. The discussion happens in Claude Code.
-- Claude pushes nothing without your go-ahead, and writes nothing on GitHub: no PR comment, no change to the description.
-- `--restart` starts over from the PR head. Without it, the command resumes the review where it stopped.
-- The page follows your browser's language: English or French.
+## How a review runs
 
-## Your data
+1. **Run** `/review-walkthru <PR>`. Claude reads the PR, its commits and the conversation that built it. It starts the app, creates the test accounts, and writes the walkthrough.
+2. **Walk through.** Chrome opens the review next to the app. Each step lists what to do, and the decisions and doubts behind it.
+3. **Send.** Check a point to validate it, or comment on it. One click sends the whole review to Claude Code, mid-round if you want.
+4. **Fix and repeat.** Claude fixes in the conversation and offers a next round with only the steps left to check. When a round passes with no comment, Claude pushes, after your yes.
 
-Everything stays on your machine, in `~/.claude/plugins/data/review-walkthru-review-walkthru/`:
+The argument takes a PR URL or number: `/review-walkthru https://github.com/owner/repo/pull/123`, `/review-walkthru 123`. Without one, it takes the last PR created in the session. `--restart` starts over from the PR head; without it, the command resumes the review where it stopped. The review page follows your browser's language, English or French.
 
-- `runs/<owner>-<repo>-<n>/`: the scenario and review of each round, the test accounts and the PR worktree;
-- `projects/<owner>-<repo>.json`: what Claude learned about starting the project.
+## Questions
 
-The Chrome extension collects nothing. Details on the [privacy page](https://review-walkthru.henry.pro/privacy.html).
+<details>
+<summary><b>Which apps does it work with?</b></summary>
+
+Any web app you can run on your machine. The first time, Claude asks how to start it, which database to use and which data to create, then remembers your answers for that project.
+</details>
+
+<details>
+<summary><b>Does Claude push without me?</b></summary>
+
+No. Claude commits its fixes in a worktree and pushes only after you say yes in the conversation. It never comments on the PR and never edits its description.
+</details>
+
+<details>
+<summary><b>Where does my data go?</b></summary>
+
+Reviews stay on your machine, in `~/.claude/plugins/data/review-walkthru-review-walkthru/`: the walkthrough and review of each round, the test accounts and the PR worktree under `runs/`, and what Claude learned about starting each project under `projects/`. The Chrome extension collects nothing. The review you send goes to Claude Code, like any other prompt. Details on the [privacy page](https://review-walkthru.henry.pro/privacy.html).
+</details>
+
+<details>
+<summary><b>Does it run on Windows?</b></summary>
+
+Not yet. macOS and Linux today.
+</details>
 
 ## Develop
 
@@ -64,10 +99,11 @@ The Chrome extension collects nothing. Details on the [privacy page](https://rev
 npm test
 claude --plugin-dir .
 node scripts/dev-fixture.mjs /tmp/rw r1 && node scripts/relay.mjs /tmp/rw
+npm run build:site && python3 -m http.server -d dist/site 8123
 ```
 
-The last line serves the review page on test data: open the address `dev-fixture.mjs` prints. To try the extension, load `extension/` unpacked from `chrome://extensions` with developer mode on. `npm run pack:extension` builds `dist/extension.zip` for the Chrome Web Store.
+The third line serves the review page on test data through the real relay: open the address `dev-fixture.mjs` prints. The last one serves the website and its live demo at `http://localhost:8123`. To try the extension, load `extension/` unpacked from `chrome://extensions` with developer mode on. `npm run pack:extension` builds `dist/extension.zip` for the Chrome Web Store, and `npm run assets` regenerates every marketing image (see [`marketing/`](marketing/README.md)).
 
 ## License
 
-[MIT](LICENSE)
+[MIT](LICENSE). Made by Thibault Henry.
