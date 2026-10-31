@@ -13,6 +13,7 @@
   const frame = () => new Promise(resolve => { requestAnimationFrame(resolve); setTimeout(resolve, 100) })
   const plain = r => ({ x: r.x, y: r.y, width: r.width, height: r.height })
   let lastTarget = null // the element under the last right-click, for the context menu
+  let active = false // this tab is the app of a running review
 
   // The capture is taken at the gesture, before the bubble opens, without the overlay in it.
   async function comment (kind, near, element, quote) {
@@ -94,27 +95,48 @@
   function onMessage (message) {
     if (message?.type !== 'rw:to-app') return
     const m = message.message
-    if (m.type === 'mode') overlay.toggleMode()
+    // The worker pings an app whose review page just (re)loaded.
+    if (m.type === 'ping') { start(); return toPage({ type: 'app-ready', url: location.href }) }
+    if (!active) return
+    if (m.type === 'unpaired') stop()
+    else if (m.type === 'mode') overlay.toggleMode()
     else if (m.type === 'comment-mode') overlay.setMode(true)
     else if (m.type === 'context') { if (!(m.selection && onSelection()) && lastTarget?.isConnected) onElement(lastTarget) }
     else if (m.type === 'prefill') prefill(m)
     else if (m.type === 'pins') pins(m)
   }
 
+  const onContextMenu = event => { lastTarget = event.target }
+  function onConsole (event) {
+    try {
+      const { level, text, at } = JSON.parse(event.detail)
+      toPage({ type: 'log', level, text, url: location.href, at })
+    } catch {}
+  }
+
   function start () {
+    if (active) return
+    active = true
     overlay.setHandlers({ pick: onElement, zone: onZone })
-    chrome.runtime.onMessage.addListener(onMessage)
-    document.addEventListener('contextmenu', event => { lastTarget = event.target }, true)
+    document.addEventListener('contextmenu', onContextMenu, true)
     document.addEventListener('mouseup', onMouseUp, true)
-    document.addEventListener('review-walkthru:console', event => {
-      try {
-        const { level, text, at } = JSON.parse(event.detail)
-        toPage({ type: 'log', level, text, url: location.href, at })
-      } catch {}
-    })
+    document.addEventListener('review-walkthru:console', onConsole)
     document.dispatchEvent(new CustomEvent('review-walkthru:console-ready'))
   }
 
+  // The review ended or left the split view: back to a plain localhost tab.
+  function stop () {
+    active = false
+    overlay.setMode(false)
+    overlay.hideSelectionButton()
+    overlay.setPins([])
+    document.removeEventListener('contextmenu', onContextMenu, true)
+    document.removeEventListener('mouseup', onMouseUp, true)
+    document.removeEventListener('review-walkthru:console', onConsole)
+  }
+
+  // Listens from the start, but acts only once the worker pairs this tab (app-hello or ping).
+  chrome.runtime.onMessage.addListener(onMessage)
   chrome.runtime.sendMessage({ type: 'rw:app-hello', url: location.href })
     .then(reply => { if (reply?.paired) start() })
     .catch(() => {})

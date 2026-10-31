@@ -129,3 +129,10 @@ test('chromeCommand opens the profile that has the extension', () => {
   assert.deepEqual(chromeCommand('linux', urls, '/usr/bin/google-chrome', 'Default').args, ['--profile-directory=Default', '--new-window', ...urls])
   assert.deepEqual(chromeCommand('win32', urls, 'C:\\chrome.exe', 'Profile 2').args, ['--profile-directory=Profile 2', '--new-window', ...urls])
 })
+
+// Chrome on Windows writes the Store path with a backslash.
+test('a Store install on Windows reads its version from a backslash path', async () => {
+  const { dir, prefs } = await chromeData()
+  await prefs('Profile 1', { [EXTENSION_ID]: { location: 1, path: `${EXTENSION_ID}\\0.5.0_0` } })
+  assert.deepEqual(extensionStatus(findExtension(dir)), { ok: true, profile: 'Profile 1', problem: null })
+})

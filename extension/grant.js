@@ -9,7 +9,8 @@ text('body', 'grantBody', origin)
 text('allow', 'grantButton')
 
 document.getElementById('allow').addEventListener('click', async () => {
-  const ok = await chrome.permissions.request({ origins: [originPattern(origin)] }).catch(() => false)
+  // Never a wildcard host: it would cover every site under it.
+  const ok = !origin.includes('*') && await chrome.permissions.request({ origins: [originPattern(origin)] }).catch(() => false)
   if (!ok) return text('body', 'grantRefused')
   await chrome.runtime.sendMessage({ type: 'rw:granted', origin })
   text('body', 'grantDone')

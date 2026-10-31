@@ -2,7 +2,7 @@
 // The review page talks through content.js; the app tab through app.js. Pairs of tabs live in
 // pairs.js, so the worker can sleep and wake up without forgetting them.
 import { HOSTS, originPattern } from './hosts.js'
-import { getPairs, setPair, appOf, reviewOf, forgetTab } from './pairs.js'
+import { getPairs, setPair, appOf, reviewOf, forgetTab, setReady, isReady } from './pairs.js'
 import { captureCrop } from './capture.js'
 
 const httpUrl = value => {
@@ -12,6 +12,11 @@ const httpUrl = value => {
   } catch { return null }
 }
 const inSplit = tab => tab.splitViewId !== undefined && tab.splitViewId !== -1
+// A host with a wildcard would ask Chrome for every site under it.
+const appOrigin = value => {
+  const url = httpUrl(value)
+  return url && !new URL(url).hostname.includes('*') ? url : null
+}
 const errorText = error => String(error?.message ?? error)
 const deliver = (tabId, type, message) => chrome.tabs.sendMessage(tabId, { type, message }).catch(() => {})
 const toPageOf = async (appTabId, message) => {
@@ -67,13 +72,31 @@ function navigate (tab, target, reply) {
   return true
 }
 
-// At the end of the review the page only says "Review finished": give it the whole window.
+// At the end of the review the page only says "Review finished": give it the whole window,
+// and leave the app on its own.
 function unsplit (tab, reply) {
   if (!inSplit(tab)) return reply({ ok: true, already: true })
-  chrome.tabs.unsplit(tab.splitViewId)
+  endReview(tab.id)
+    .then(() => chrome.tabs.unsplit(tab.splitViewId))
     .then(() => reply({ ok: true }))
     .catch(error => reply({ ok: false, error: errorText(error) }))
   return true
+}
+
+// The review is over for this pair: the app drops its tools and stops forwarding its console.
+async function endReview (reviewTabId) {
+  const app = await appOf(reviewTabId)
+  if (app !== null) deliver(app, 'rw:to-app', { type: 'unpaired' })
+  await forgetTab(reviewTabId)
+}
+
+// closed: the app tab is gone, nobody to tell there.
+async function endApp (appTabId, { closed = false } = {}) {
+  if (await reviewOf(appTabId) === null) return
+  if (!closed) deliver(appTabId, 'rw:to-app', { type: 'unpaired' })
+  await toPageOf(appTabId, { type: 'app-gone' })
+  lastRequest.delete(appTabId)
+  await forgetTab(appTabId)
 }
 
 // ---- the app tab ----
@@ -88,7 +111,7 @@ async function appHello (tab, url) {
       review = partner.id
     }
   }
-  if (review === null) return { paired: false }
+  if (review === null || !await isReady(review)) return { paired: false }
   deliver(review, 'rw:to-page', { type: 'app-ready', url })
   return { paired: true }
 }
@@ -124,6 +147,12 @@ function fromApp (appTabId, message) {
   return toPageOf(appTabId, message)
 }
 
+async function reviewReady (reviewTabId) {
+  await setReady(reviewTabId)
+  const app = await appOf(reviewTabId)
+  if (app !== null) deliver(app, 'rw:to-app', { type: 'ping' })
+}
+
 // The shortcut, the icon and the context menu are the gestures that let Chrome capture the tab.
 async function onGesture (tab, appMessage) {
   if (!tab) return
@@ -138,21 +167,29 @@ async function shortcut () {
 // ---- hosts beyond localhost ----
 
 function openGrant (origin) {
-  if (!httpUrl(origin)) return { ok: false }
+  if (!appOrigin(origin)) return { ok: false }
   chrome.windows.create({ url: chrome.runtime.getURL(`grant.html?origin=${encodeURIComponent(origin)}`), type: 'popup', width: 440, height: 300 })
   return { ok: true }
 }
 
-// Called by grant.html once Chrome granted the host: run the app scripts there from now on.
-async function granted (origin) {
-  const pattern = originPattern(origin)
-  if (!await chrome.permissions.contains({ origins: [pattern] })) return { ok: false }
+// The app scripts on a host the reviewer allowed, as the manifest declares them for localhost.
+async function registerFor (patterns) {
   const known = new Set((await chrome.scripting.getRegisteredContentScripts()).map(script => script.id))
-  const scripts = [
+  const scripts = patterns.flatMap(pattern => [
     { id: `rw-console ${pattern}`, matches: [pattern], js: ['console.js'], runAt: 'document_start', world: 'MAIN' },
     { id: `rw-app ${pattern}`, matches: [pattern], js: ['dom.js', 'overlay.js', 'app.js'], runAt: 'document_idle' }
-  ].filter(script => !known.has(script.id))
+  ]).filter(script => !known.has(script.id))
   if (scripts.length) await chrome.scripting.registerContentScripts(scripts)
+}
+
+const grantedOrigins = async () => ((await chrome.permissions.getAll()).origins ?? []).filter(origin => origin !== '*://*/*' && !HOSTS.includes(origin))
+
+// Called by grant.html once Chrome granted the host: run the app scripts there from now on.
+async function granted (origin) {
+  if (!appOrigin(origin)) return { ok: false }
+  const pattern = originPattern(origin)
+  if (!await chrome.permissions.contains({ origins: [pattern] })) return { ok: false }
+  await registerFor([pattern])
   await buildMenus()
   for (const [review, app] of await getPairs()) {
     const tab = await chrome.tabs.get(app).catch(() => null)
@@ -164,8 +201,7 @@ async function granted (origin) {
 }
 
 async function buildMenus () {
-  const granted = ((await chrome.permissions.getAll()).origins ?? []).filter(origin => origin !== '*://*/*')
-  const documentUrlPatterns = [...new Set([...HOSTS, ...granted])]
+  const documentUrlPatterns = [...HOSTS, ...await grantedOrigins()]
   await chrome.contextMenus.removeAll()
   chrome.contextMenus.create({ id: 'rw-element', title: chrome.i18n.getMessage('menuElement'), contexts: ['page', 'link', 'image'], documentUrlPatterns })
   chrome.contextMenus.create({ id: 'rw-selection', title: chrome.i18n.getMessage('menuSelection'), contexts: ['selection'], documentUrlPatterns })
@@ -181,7 +217,10 @@ chrome.runtime.onMessage.addListener((message, sender, reply) => {
     case 'review-walkthru:navigate': return navigate(tab, message.url, reply)
     case 'review-walkthru:unsplit': return unsplit(tab, reply)
     case 'rw:review-hello':
-      shortcut().then(key => reply({ version: chrome.runtime.getManifest().version, shortcut: key }))
+      // ready: the page answers the extension (0.5 and later). Its app may start, after a reload too.
+      ;(message.ready ? reviewReady(tab.id) : Promise.resolve())
+        .then(shortcut)
+        .then(key => reply({ version: chrome.runtime.getManifest().version, shortcut: key }))
       return true
     case 'rw:app-hello':
       appHello(tab, message.url).then(reply)
@@ -209,12 +248,21 @@ chrome.contextMenus.onClicked.addListener((info, tab) => onGesture(tab, { type: 
 chrome.webRequest.onCompleted.addListener(details => onRequest(details, null), { urls: ['<all_urls>'] })
 chrome.webRequest.onErrorOccurred.addListener(details => onRequest(details, details.error), { urls: ['<all_urls>'] })
 
-chrome.tabs.onUpdated.addListener((tabId, change) => change.url ? toPageOf(tabId, { type: 'navigated', url: change.url }) : undefined)
+chrome.tabs.onUpdated.addListener(async (tabId, change) => {
+  if (change.url) await toPageOf(tabId, { type: 'navigated', url: change.url })
+  if (change.splitViewId === -1) {
+    // Either half left the split view: the review and its app no longer go together.
+    if (await reviewOf(tabId) !== null) await endApp(tabId)
+    else if (await appOf(tabId) !== null) await endReview(tabId)
+  }
+})
 chrome.tabs.onRemoved.addListener(async tabId => {
-  await toPageOf(tabId, { type: 'app-gone' })
-  lastRequest.delete(tabId)
+  if (await reviewOf(tabId) !== null) return endApp(tabId, { closed: true })
+  if (await appOf(tabId) !== null) return endReview(tabId)
   await forgetTab(tabId)
 })
 
-chrome.runtime.onInstalled.addListener(() => buildMenus())
-chrome.runtime.onStartup.addListener(() => buildMenus())
+// Scripts registered for an allowed host may not survive an update: register them again.
+const setUp = async () => { await buildMenus(); await registerFor((await grantedOrigins()).map(originPattern)) }
+chrome.runtime.onInstalled.addListener(setUp)
+chrome.runtime.onStartup.addListener(setUp)

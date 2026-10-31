@@ -12,8 +12,9 @@
   const post = (type, payload = {}) => window.postMessage({ ...payload, source: 'review-walkthru-extension', type }, location.origin)
   const toWorker = message => chrome.runtime.sendMessage(message).catch(() => null)
 
-  async function hello () {
-    const info = await toWorker({ type: 'rw:review-hello' })
+  // ready: answering the page's ping tells the worker this page takes the app's comments.
+  async function hello (ready = false) {
+    const info = await toWorker({ type: 'rw:review-hello', ready })
     post('hello', { protocol: PROTOCOL, version: info?.version ?? '', shortcut: info?.shortcut ?? '' })
   }
 
@@ -58,7 +59,7 @@
   window.addEventListener('message', event => {
     if (event.source !== window || event.data?.source !== 'review-walkthru-page') return
     const { source, type, ...payload } = event.data
-    if (type === 'ping') hello()
+    if (type === 'ping') hello(true)
     else if (type === 'grant') toWorker({ type: 'rw:grant', origin: payload.origin })
     else if (TO_APP.includes(type)) toWorker({ type: 'rw:to-app', message: { type, ...payload } })
   })

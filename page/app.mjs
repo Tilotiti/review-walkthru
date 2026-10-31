@@ -43,6 +43,7 @@ let appReady = false // the app half runs the extension's script
 let coverage = null // { origin, covered }: whether the extension may run in the app
 const pendingCaptures = new Set() // comment ids whose capture is being uploaded
 let pendingPrefill = null // { id, unresolved } of the last prefill request
+let issuesOpen = false // the console list stays open while new entries arrive
 
 const prefix = () => `rw:${data.scenario.pr.repo}#${data.scenario.pr.number}`
 const stepsById = () => new Map([...data.scenario.steps, ...data.skippedSteps].map(step => [step.id, step]))
@@ -300,7 +301,7 @@ const clock = at => new Date(at).toLocaleTimeString(lang, { hour: '2-digit', min
 function issuesBlock (entry) {
   const c = issues(entry)
   if (!c.errors && !c.warnings && !c.requests) return null
-  return h('details', { class: 'issues' }, h('summary', {}, issuesText(lang, c)),
+  return h('details', { class: 'issues', open: issuesOpen, ontoggle: event => { issuesOpen = event.target.open } }, h('summary', {}, issuesText(lang, c)),
     h('ul', {},
       entry.logs.map(l => h('li', { class: l.level }, h('span', { class: 'when' }, clock(l.at)), l.text)),
       entry.requests.map(r => h('li', { class: 'error' }, h('span', { class: 'when' }, clock(r.at)), `${r.method} ${r.status ?? r.error} ${r.url}`))))
@@ -338,7 +339,7 @@ function appLink (path, label = path, props = {}) {
 function composerBox (stepId, anchor, { free = false } = {}) {
   const key = draftKey(stepId, anchor)
   const focusNow = composer?.focus && (!free || composer.anchor.kind === 'step')
-  const area = h('textarea', { rows: free ? 2 : 3, placeholder: t('placeholder'), 'aria-label': t('placeholder'), 'data-autofocus': focusNow ? true : null })
+  const area = h('textarea', { rows: free ? 2 : 3, placeholder: t('placeholder'), 'aria-label': t('placeholder'), 'data-autofocus': focusNow ? true : null, 'data-focus-key': `composer:${key}` })
   area.value = s.drafts?.[key] ?? ''
   // Keep the draft in the state without re-rendering, so checking a point does not erase it.
   area.addEventListener('input', () => { s = setDraft(s, key, area.value); store.set(`${prefix()}:r${data.round}`, s) })
@@ -534,17 +535,25 @@ document.addEventListener('keyup', event => { if (event.shiftKey) placeSelButton
 
 // The page rebuilds its DOM on every change: give the focus back to the same control,
 // so a keyboard user keeps their place after checking a point.
+// The app's console re-renders the page while the reviewer types: the caret stays where it was.
 function render () {
   const root = document.getElementById('app')
-  const focusKey = document.activeElement?.dataset?.focusKey
+  const active = document.activeElement
+  const focusKey = active?.dataset?.focusKey
+  const caret = active?.tagName === 'TEXTAREA' ? [active.selectionStart, active.selectionEnd] : null
   root.replaceChildren(...view().filter(Boolean))
   const autofocus = root.querySelector('textarea[data-autofocus]')
   if (composer) composer.focus = false // only the render that opens a comment box moves the focus into it
-  if (autofocus) autofocus.focus()
-  else if (focusKey) root.querySelector(`[data-focus-key="${CSS.escape(focusKey)}"]`)?.focus()
+  if (autofocus) return autofocus.focus()
+  const again = focusKey && root.querySelector(`[data-focus-key="${CSS.escape(focusKey)}"]`)
+  if (!again) return
+  again.focus()
+  if (caret) again.setSelectionRange(...caret)
 }
 
 hello = await bridge.waitForHello(HELLO_MS)
 const access = gate(hello, document.documentElement.hasAttribute('data-rw-extension'))
-if (access === 'ok') load()
+// Ping once more now that the extension answered: it marks this page as able to take the app's
+// comments (the first ping may have come before its script loaded).
+if (access === 'ok') { bridge.send('ping'); load() }
 else document.getElementById('app').replaceChildren(gateView(access))

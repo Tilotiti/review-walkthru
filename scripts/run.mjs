@@ -75,7 +75,7 @@ export function findExtension (userDataDir, { readFile = path => readFileSync(pa
       const path = String(settings.path ?? '')
       const version = isAbsolute(path) || win32.isAbsolute(path)
         ? JSON.parse(readFile(join(path, 'manifest.json'))).version ?? null
-        : /\/([\d.]+)_\d+$/.exec(path)?.[1] ?? null
+        : /[\\/]([\d.]+)_\d+$/.exec(path)?.[1] ?? null // \\ on Windows
       result.profiles.push({ dir, name: info?.name ?? dir, version, enabled: !settings.disable_reasons?.length })
     }
   } catch {

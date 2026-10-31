@@ -49,7 +49,7 @@ globalThis.chrome = {
   i18n: { getMessage: key => key }
 }
 await import('../extension/worker.js')
-const { appOf, setPair, forgetTab } = await import('../extension/pairs.js')
+const { appOf, setPair, forgetTab, setReady } = await import('../extension/pairs.js')
 const { originPattern, HOSTS } = await import('../extension/hosts.js')
 const listener = (...args) => on.message(...args)
 
@@ -151,8 +151,11 @@ test('the review page gets the version and the real shortcut', async () => {
   assert.deepEqual(await send({ type: 'rw:review-hello' }, { tab: { id: 5 } }), { version: '0.5.0', shortcut: '⌥⇧C' })
 })
 
-test('app-hello pairs only the app of a review', async () => {
-  await setPair(5, 99); sent()
+test('app-hello pairs only the app of a review whose page pinged', async () => {
+  await forgetTab(5); await setPair(5, 99); sent()
+  // A page from before 0.5 never pings: its app stays inert, so no comment gets lost.
+  assert.deepEqual(await send({ type: 'rw:app-hello', url: 'http://localhost:8000/clients' }, { tab: { id: 99, windowId: 1, splitViewId: 7 } }), { paired: false })
+  await setReady(5); await settle(); sent()
   assert.deepEqual(await send({ type: 'rw:app-hello', url: 'http://localhost:8000/clients' }, { tab: { id: 99, windowId: 1, splitViewId: 7 } }), { paired: true })
   await settle()
   assert.deepEqual(sent(), [[5, { type: 'rw:to-page', message: { type: 'app-ready', url: 'http://localhost:8000/clients' } }]])
@@ -254,7 +257,7 @@ test('app URL changes reach the review, and a closed app unpairs', async () => {
 })
 
 test('a grant opens the extension page, which registers the scripts for that host', async () => {
-  windowsCreated.length = 0
+  windowsCreated.length = 0; registered.length = 0
   await send({ type: 'rw:grant', origin: 'http://myapp.test:8000' }, { tab: { id: 5 } })
   await send({ type: 'rw:grant', origin: 'javascript:alert(1)' }, { tab: { id: 5 } })
   assert.equal(windowsCreated.length, 1)
@@ -287,4 +290,56 @@ test('a capture is asked for an app tab only', async () => {
   await setPair(5, 99)
   const reply = await send({ type: 'rw:capture', rect: { x: 0, y: 0, width: 1, height: 1 }, viewport: { width: 10, height: 10 }, dpr: 1 }, { tab: { id: 42, windowId: 1 } })
   assert.deepEqual(reply, { ok: false, error: 'not an app tab' })
+})
+
+test('a page that pings marks its review ready and wakes its app, after a reload too', async () => {
+  await forgetTab(5); await setPair(5, 99); sent()
+  assert.deepEqual(await send({ type: 'rw:review-hello', ready: true }, { tab: { id: 5 } }), { version: '0.5.0', shortcut: '⌥⇧C' })
+  await settle()
+  assert.deepEqual(sent(), [[99, { type: 'rw:to-app', message: { type: 'ping' } }]])
+  await send({ type: 'rw:review-hello' }, { tab: { id: 5 } }) // the hello content.js sends at load does not
+  await settle()
+  assert.deepEqual(sent(), [])
+})
+
+test('leaving the split view ends the pairing and tells the app', async () => {
+  await setPair(5, 99); await setReady(5); sent()
+  await send({ type: 'review-walkthru:unsplit' }, { tab: { id: 5, index: 2, windowId: 1, splitViewId: 3 } })
+  await settle()
+  assert.deepEqual(sent(), [[99, { type: 'rw:to-app', message: { type: 'unpaired' } }]])
+  assert.equal(await appOf(5), null)
+})
+
+test('closing the review tab tells the app it is on its own', async () => {
+  await setPair(5, 99); await setReady(5); sent()
+  await on.removed(5)
+  await settle()
+  assert.deepEqual(sent(), [[99, { type: 'rw:to-app', message: { type: 'unpaired' } }]])
+  assert.equal(await appOf(5), null)
+})
+
+test('the app tab leaving the split view ends the pairing on both sides', async () => {
+  await setPair(5, 99); await setReady(5); sent()
+  await on.updated(99, { splitViewId: -1 })
+  await settle()
+  assert.deepEqual(sent(), [
+    [99, { type: 'rw:to-app', message: { type: 'unpaired' } }],
+    [5, { type: 'rw:to-page', message: { type: 'app-gone' } }]
+  ])
+  assert.equal(await appOf(5), null)
+})
+
+test('a host with a wildcard is never asked for', async () => {
+  windowsCreated.length = 0; registered.length = 0
+  await send({ type: 'rw:grant', origin: 'http://*.com' }, { tab: { id: 5 } })
+  assert.equal(windowsCreated.length, 0)
+  assert.deepEqual(await send({ type: 'rw:granted', origin: 'http://*.com' }, { tab: { id: 77 }, url: 'chrome-extension://kjig/grant.html' }), { ok: false })
+  assert.equal(registered.length, 0)
+})
+
+test('an install or an update registers the scripts of hosts granted before', async () => {
+  registered.length = 0
+  await on.installed()
+  await settle()
+  assert.deepEqual(registered.map(script => script.matches[0]), ['http://myapp.test/*', 'http://myapp.test/*'])
 })
