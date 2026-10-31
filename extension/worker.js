@@ -14,8 +14,9 @@ function split (tab, appUrl, reply) {
   if (inSplit(tab)) return reply({ ok: true, already: true, splitViewId: tab.splitViewId })
   const url = httpUrl(appUrl)
   if (!url) return reply({ ok: false, error: 'the app URL must be http(s)' })
-  // index: tab.index puts the app before the review tab, so on its left.
-  chrome.tabs.create({ url, splitWithTabId: tab.id, index: tab.index, active: false })
+  // windowId: without it Chrome opens the tab in the last focused window, which may not
+  // hold the review tab, and refuses the split. index: tab.index puts the app on its left.
+  chrome.tabs.create({ url, splitWithTabId: tab.id, windowId: tab.windowId, index: tab.index, active: false })
     .then(appTab => reply({ ok: true, splitViewId: appTab.splitViewId }))
     .catch(error => reply({ ok: false, error: String(error?.message ?? error) }))
   return true

@@ -29,12 +29,12 @@ function send (message, sender) {
   })
 }
 
-const reviewTab = { id: 5, index: 2, splitViewId: -1 }
+const reviewTab = { id: 5, index: 2, windowId: 1, splitViewId: -1 }
 
-test('opens the app on the left of the review tab, in split view', async () => {
+test('opens the app on the left of the review tab, in its window, in split view', async () => {
   created.length = 0
   const reply = await send({ type: 'review-walkthru:split', appUrl: 'http://localhost:8000/clients' }, { tab: reviewTab })
-  assert.deepEqual(created, [{ url: 'http://localhost:8000/clients', splitWithTabId: 5, index: 2, active: false }])
+  assert.deepEqual(created, [{ url: 'http://localhost:8000/clients', splitWithTabId: 5, windowId: 1, index: 2, active: false }])
   assert.deepEqual(reply, { ok: true, splitViewId: 7 })
 })
 
