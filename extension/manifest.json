@@ -1,12 +1,33 @@
 {
   "manifest_version": 3,
-  "name": "Review Walkthru",
-  "version": "0.4.0",
-  "description": "Opens your app next to the Review Walkthru page in Chrome split view, so you can review a pull request step by step.",
+  "name": "__MSG_extName__",
+  "version": "0.5.0",
+  "description": "__MSG_extDescription__",
+  "default_locale": "en",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAxU1jAG+MwVByC3xV443Fpz207iq18RMMrexAJ5ySSJnwmW3MnQZ0fzpxudbHnbQ519y8wkONWeXaAO1Ini7OLKZoAO1vUsvQShAUQDM9hHT9uJ3Ij/GcyUrpYuoMkWjPdOHeV7SHC4dwxq8zcOsX9qpTzWbiruc+fbv0gEWrbqSaaVjfQaokt58UOj47NdgyXNDm92cKF5NBLBPI20Tm6WbjFMyYMWFkvrCxAGn08mzb5LzgX2U3lkuxhVe2Av5TKMHALgzut8ELPRQzM8DNkd1My06QBMnpiJI2DNccXK2N+K7JlE0Cart7/OMq6DnJ2FSWcaMRjs8YzVN+3mVvWQIDAQAB",
   "icons": { "16": "icons/icon-16.png", "32": "icons/icon-32.png", "48": "icons/icon-48.png", "128": "icons/icon-128.png" },
   "minimum_chrome_version": "155",
-  "background": { "service_worker": "worker.js" },
+  "permissions": ["activeTab", "contextMenus", "webRequest", "storage", "scripting"],
+  "host_permissions": [
+    "http://localhost/*", "https://localhost/*",
+    "http://*.localhost/*", "https://*.localhost/*",
+    "http://127.0.0.1/*", "https://127.0.0.1/*"
+  ],
+  "optional_host_permissions": ["*://*/*"],
+  "background": { "service_worker": "worker.js", "type": "module" },
+  "action": { "default_title": "__MSG_actionTitle__", "default_icon": { "16": "icons/icon-16.png", "32": "icons/icon-32.png" } },
+  "commands": {
+    "comment": { "suggested_key": { "default": "Alt+Shift+C" }, "description": "__MSG_commandComment__" }
+  },
   "content_scripts": [
-    { "matches": ["http://127.0.0.1/*"], "js": ["content.js"], "run_at": "document_end" }
+    { "matches": ["http://127.0.0.1/*"], "js": ["content.js"], "run_at": "document_end" },
+    {
+      "matches": ["http://localhost/*", "https://localhost/*", "http://*.localhost/*", "https://*.localhost/*", "http://127.0.0.1/*", "https://127.0.0.1/*"],
+      "js": ["console.js"], "run_at": "document_start", "world": "MAIN"
+    },
+    {
+      "matches": ["http://localhost/*", "https://localhost/*", "http://*.localhost/*", "https://*.localhost/*", "http://127.0.0.1/*", "https://127.0.0.1/*"],
+      "js": ["dom.js", "overlay.js", "app.js"], "run_at": "document_idle"
+    }
   ]
 }
