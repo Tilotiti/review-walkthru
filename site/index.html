@@ -3,10 +3,10 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Review Walkthru: guided pull request reviews in your running app</title>
-  <meta name="description" content="A Claude Code plugin that lays a pull request out as steps beside your locally running app. You check, comment, and Claude fixes what you flag.">
-  <meta property="og:title" content="Review Walkthru">
-  <meta property="og:description" content="Walk through a pull request in your running app, then let Claude fix what you flag.">
+  <title>Review Walkthru: turn a pull request into a real acceptance test</title>
+  <meta name="description" content="A Claude Code plugin that turns a pull request into a real acceptance test: every screen, every decision Claude made, checked in your running app.">
+  <meta property="og:title" content="Review Walkthru: don't merge what you haven't seen">
+  <meta property="og:description" content="A Claude Code plugin that turns a pull request into a real acceptance test, in your running app.">
   <meta property="og:image" content="https://review-walkthru.henry.pro/og.png">
   <meta property="og:url" content="https://review-walkthru.henry.pro/">
   <meta name="twitter:card" content="summary_large_image">
@@ -14,102 +14,219 @@
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="apple-touch-icon.png">
   <meta name="theme-color" content="#2156d9">
+  <link rel="preload" href="fonts/Geist-Variable.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <header class="wrap nav">
-    <a class="brand" href="./"><img src="logo.svg" alt="">Review Walkthru</a>
-    <a class="link" href="#how">How it works</a>
-    <a class="link" href="https://github.com/Tilotiti/review-walkthru">GitHub</a>
-    <a class="btn primary small" href="#install">Install</a>
+  <header class="top">
+    <div class="wrap nav">
+      <a class="brand" href="./"><img src="favicon.svg" alt="" width="24" height="24">Review Walkthru</a>
+      <a class="link" href="#how">How it works</a>
+      <a class="link" href="#try">Try it</a>
+      <a class="link" href="https://github.com/Tilotiti/review-walkthru">GitHub</a>
+      <a class="btn primary small" href="#install">Install</a>
+    </div>
   </header>
+
+  <nav class="rail" aria-label="Where you are on this page">
+    <a href="#why" data-point="why"><i></i><span>Why</span></a>
+    <a href="#how" data-point="how"><i></i><span>How</span></a>
+    <a href="#try" data-point="try"><i></i><span>Try it</span></a>
+    <a href="#install" data-point="install"><i></i><span>Install</span></a>
+  </nav>
 
   <main>
     <div class="wrap hero">
-      <h1>Walk through a pull request in your running app.</h1>
-      <p>Claude lays the PR out as steps beside your app. Check each point, comment, and send it back at once.</p>
-      <div class="ctas">
-        <a class="btn primary" href="#install">Install</a>
-        <a class="btn secondary" href="https://github.com/Tilotiti/review-walkthru">
-          <picture><source srcset="https://cdn.simpleicons.org/github/ececf1" media="(prefers-color-scheme: dark)"><img src="https://cdn.simpleicons.org/github/17171c" alt="" width="18" height="18"></picture>
-          View on GitHub
-        </a>
+      <div class="hero-text">
+        <div>
+          <span class="badge">A plugin for Claude Code</span>
+          <h1>Don't merge what you haven't seen.</h1>
+        </div>
+        <div>
+          <p class="sub">Review Walkthru turns a pull request into a real acceptance test: every screen, every decision Claude made, checked in your running app.</p>
+          <div class="actions">
+            <a class="btn primary" href="#install">Install</a>
+            <a class="btn secondary" href="#try">Try it live</a>
+          </div>
+        </div>
       </div>
-      <img class="shot" src="screenshot.png" width="2560" height="1600" alt="Chrome split view: a client list app on the left, the Review Walkthru page on the right with one point validated and one commented.">
+      <figure class="hero-visual">
+        <div class="window"><img src="img/hero.png" width="2560" height="1600" alt="Chrome split view: a client list app on the left; on the right the Review Walkthru page, with one point validated and one point commented."></div>
+        <div class="term hero-term" aria-label="Claude Code output, illustrative">
+          <p><span class="t-p">&gt;</span> /review-walkthru 128</p>
+          <p class="t-dim">PR #128: 9 files, app on localhost:8000</p>
+          <p><span class="t-ok">✓</span> Review ready: 4 steps, 9 points</p>
+          <p><span class="t-am">●</span> Review received: 1 comment. Fixing.</p>
+        </div>
+        <div class="point-card hero-card-1"><span class="st ok" aria-hidden="true">✓</span><p><b>Decision, validated</b>Sorted by name only.</p></div>
+        <div class="point-card hero-card-2"><span class="st doubt" aria-hidden="true">?</span><p><b>Doubt</b>Archived clients stay visible by default.</p></div>
+      </figure>
     </div>
 
-    <section id="how" class="wrap">
-      <div class="flow">
-        <div class="intro">
-          <h2>One review, start to push</h2>
-          <p class="lead">You stay in Claude Code for the talking and in Chrome for the looking.</p>
+    <section id="why" class="wrap" data-rail>
+      <h2>Claude finished the feature. Do you know everything it built?</h2>
+      <p class="lead">A big PR from Claude ends with a long message: what to test, what it decided without you, what it left for later. You test from memory, switch between the chat and the browser, and send feedback one line at a time.</p>
+
+      <div class="pains">
+        <ol>
+          <li>
+            <p class="pain">"I don't know everything that changed."</p>
+            <p>Claude writes a walkthrough that covers every visible change in the PR, screen by screen, in the order you use the app.</p>
+          </li>
+          <li>
+            <p class="pain">"I miss the decisions Claude made alone."</p>
+            <p>Each decision and each doubt sits next to the screen that shows it, with what it would cost to change.</p>
+          </li>
+          <li>
+            <p class="pain">"Checking it all means endless back and forth."</p>
+            <p>Your app and the review sit side by side. Check each point, comment, and send everything back to Claude in one click.</p>
+          </li>
+        </ol>
+        <figure class="window pains-visual"><img src="img/points.png" width="1040" height="800" alt="Two review points: Sorting, validated, with the author's decision; Status filter, with a doubt inferred from the diff and the reviewer's comment."></figure>
+      </div>
+
+      <div class="proof">
+        <div class="proof-head">
+          <h3>From a real review</h3>
+          <p>A 7-screen feature in a production SaaS, reviewed with Review Walkthru.</p>
         </div>
-        <ol class="steps">
+        <ol class="rounds">
           <li>
-            <h3>Run <code>/review-walkthru 123</code></h3>
-            <p>Claude reads the PR, its commits and the conversation that built it. It starts the app, creates the test accounts, and writes the scenario.</p>
+            <span class="round">Round 1</span>
+            <p class="big">19 decisions<br>7 doubts</p>
+            <p>surfaced across 7 steps and 18 points. 4 comments sent back.</p>
           </li>
           <li>
-            <h3>Walk through</h3>
-            <p>Chrome opens the review page next to the app, in split view. Each step says what to do and which decisions sit behind it.</p>
+            <span class="round">Round 2</span>
+            <p class="big">1 comment</p>
+            <p>left after Claude's fixes.</p>
           </li>
           <li>
-            <h3>Send</h3>
-            <p>Check a point to validate it or comment on it. One click sends the whole review to Claude Code.</p>
-          </li>
-          <li>
-            <h3>Fix and repeat</h3>
-            <p>Claude fixes in the conversation and offers a round with only the steps to recheck. Once a round passes without comments, it pushes, after you say yes.</p>
+            <span class="round done">Round 3</span>
+            <p class="big">2 of 7 steps</p>
+            <p>to recheck. No comment. Pushed.</p>
           </li>
         </ol>
       </div>
     </section>
 
-    <section class="wrap">
-      <h2>Built for the reviewer</h2>
-      <div class="bento">
-        <div class="panel big">
-          <div>
-            <h3>Decisions next to the screen that shows them</h3>
-            <p>Each point carries the author's decisions and Claude's doubts, with what a change would cost.</p>
+    <section id="how" class="wrap" data-rail>
+      <h2>One review, from the command to the push</h2>
+      <p class="lead">You talk to Claude in Claude Code and look at the app in Chrome. Nothing else changes in how you work.</p>
+      <div class="how">
+        <ol class="steps">
+          <li data-visual="run">
+            <h3><span class="num">1</span>Run <code>/review-walkthru 128</code></h3>
+            <p>Claude reads the PR, its commits and the conversation that built it. It starts the app, creates the test accounts, and writes the walkthrough.</p>
+          </li>
+          <li data-visual="walk">
+            <h3><span class="num">2</span>Walk through</h3>
+            <p>Chrome opens the review next to the app, in split view. Each step lists what to do, and the decisions and doubts behind it.</p>
+          </li>
+          <li data-visual="send">
+            <h3><span class="num">3</span>Send</h3>
+            <p>Check a point to validate it, or comment on it. One click sends the whole review to Claude Code, mid-round if you want.</p>
+          </li>
+          <li data-visual="repeat">
+            <h3><span class="num">4</span>Fix and repeat</h3>
+            <p>Claude fixes in the conversation and offers a next round with only the steps left to check. When a round passes with no comment, it pushes, after your yes.</p>
+          </li>
+        </ol>
+        <div class="stage" data-active="run" aria-hidden="true">
+          <div class="frame" data-for="run">
+            <div class="term">
+              <p><span class="t-p">&gt;</span> /review-walkthru 128</p>
+              <p class="t-dim">Read PR #128: 9 files, 3 commits.</p>
+              <p class="t-dim">Started the app on localhost:8000.</p>
+              <p class="t-dim">Created a test admin account.</p>
+              <p><span class="t-ok">✓</span> Review ready: 4 steps, 9 points.</p>
+              <p class="t-dim">Opening Chrome.</p>
+            </div>
+            <p class="note">Claude Code output, illustrative.</p>
           </div>
-          <img src="points.png" width="1040" height="760" alt="Two review points: Sorting, validated, with its decision; Status filter, with a doubt inferred from the diff and the reviewer's comment.">
-        </div>
-        <div class="panel tint">
-          <h3>The next round skips what you validated</h3>
-          <p>Claude keeps the commented steps and the ones its fixes touch. Each skipped step comes with a reason.</p>
-        </div>
-        <div class="panel">
-          <h3>Your machine, your call</h3>
-          <p>A local relay serves the page. Claude writes nothing on GitHub: no PR comment, no description edit. It pushes only when you approve.</p>
+          <div class="frame" data-for="walk"><div class="window"><img src="img/hero.png" width="2560" height="1600" alt="" loading="lazy"></div></div>
+          <div class="frame" data-for="send">
+            <div class="term">
+              <p><span class="t-am">●</span> Review received: 1 comment, 1 point validated.</p>
+              <p class="t-dim">Status filter: "Archived clients should be hidden</p>
+              <p class="t-dim">by default, with a toggle to show them."</p>
+              <p><span class="t-p">●</span> Fixing: the list now starts on Active.</p>
+              <p><span class="t-ok">✓</span> Next round: 2 of 4 steps to recheck.</p>
+            </div>
+            <p class="note">Claude Code output, illustrative.</p>
+          </div>
+          <div class="frame" data-for="repeat"><div class="window"><img src="img/next-round.png" width="2560" height="1600" alt="" loading="lazy"></div></div>
         </div>
       </div>
     </section>
 
-    <section id="install" class="wrap">
+    <section id="try" class="wrap" data-rail>
+      <h2>Try it. Nothing to install.</h2>
+      <p class="lead">The real review page, running on sample data from a made-up CRM. Check a point, comment on another, click "Open in the app", then send it to Claude.</p>
+      <div class="demo window">
+        <div class="tabs" aria-hidden="true"><i></i><i></i><i></i><span><b></b>Clients · Fernhill CRM</span><span><img src="favicon.svg" alt="">Review · PR #128</span></div>
+        <div class="panes">
+          <iframe id="demo-app" title="Sample app: Fernhill CRM" src="demo/app/clients/" loading="lazy"></iframe>
+          <iframe id="demo-review" title="Review Walkthru page, playable demo" src="demo/" loading="lazy"></iframe>
+        </div>
+        <noscript><img src="img/hero.png" width="2560" height="1600" alt="The Review Walkthru page next to the app it reviews."></noscript>
+      </div>
+      <div class="demo-bar">
+        <p class="muted">Sample data. Nothing leaves your browser.</p>
+        <button class="btn secondary small" type="button" id="demo-reset">Reset demo</button>
+      </div>
+      <div class="received" id="received" hidden>
+        <h3>What Claude receives</h3>
+        <p id="received-summary"></p>
+        <ul id="received-comments"></ul>
+        <details><summary>The review file, as Claude reads it</summary><pre id="received-json"></pre></details>
+      </div>
+    </section>
+
+    <section id="install" class="wrap" data-rail>
       <h2>Install</h2>
       <p class="lead">Two minutes, once per machine.</p>
       <div class="install">
-        <div class="panel">
-          <h3>1. Add the plugin in Claude Code</h3>
+        <div class="card wide">
+          <h3><span class="num">1</span>Add the plugin in Claude Code</h3>
           <pre class="code"><button class="copy" type="button">Copy</button><code>/plugin marketplace add Tilotiti/review-walkthru
 /plugin install review-walkthru@review-walkthru</code></pre>
-          <ul class="reqs">
-            <li>macOS or Linux</li>
-            <li>Node.js 18 or later</li>
-            <li>GitHub CLI signed in, with write access to the repo</li>
-          </ul>
         </div>
-        <div class="panel">
-          <h3>2. Add the Chrome extension</h3>
-          <p>It opens your app next to the review page, in split view. It needs Chrome 155 or later.</p>
-          <a class="btn primary" href="https://chromewebstore.google.com/detail/kjigknfmabifbopeelbckkilheemoedh">
-            <picture><source srcset="https://cdn.simpleicons.org/googlechrome/0d0f13" media="(prefers-color-scheme: dark)"><img src="https://cdn.simpleicons.org/googlechrome/ffffff" alt="" width="18" height="18"></picture>
-            Add to Chrome
-          </a>
-          <h3>3. Review a PR</h3>
+        <div class="card">
+          <h3><span class="num">2</span>Add the Chrome extension</h3>
+          <p>It opens your app next to the review page, in split view. Chrome 155 or later.</p>
+          <a class="btn primary" href="https://chromewebstore.google.com/detail/kjigknfmabifbopeelbckkilheemoedh">Add to Chrome</a>
+          <p class="muted small">Pending Google review.</p>
+        </div>
+        <div class="card">
+          <h3><span class="num">3</span>Review a pull request</h3>
           <pre class="code"><button class="copy" type="button">Copy</button><code>/review-walkthru 123</code></pre>
+          <p class="muted small">Needs macOS or Linux, Node.js 18 or later, and the GitHub CLI signed in.</p>
         </div>
+      </div>
+
+      <div class="faq">
+        <h3>Questions</h3>
+        <details>
+          <summary>Which apps does it work with?</summary>
+          <p>Any web app you can run on your machine. The first time, Claude asks how to start it, which database to use and which data to create, then remembers your answers for that project.</p>
+        </details>
+        <details>
+          <summary>Does Claude push without me?</summary>
+          <p>No. Claude commits its fixes in a worktree and pushes only after you say yes in the conversation. It never comments on the PR and never edits its description.</p>
+        </details>
+        <details>
+          <summary>Where does my data go?</summary>
+          <p>Reviews stay in <code>~/.claude/plugins/data/</code> on your machine, and the extension collects nothing. The review you send goes to Claude Code, like any other prompt. Details on the <a href="privacy.html">privacy page</a>.</p>
+        </details>
+        <details>
+          <summary>Do I need the Chrome extension?</summary>
+          <p>It opens the app next to the review page and sends the page's links to the app's half. Without it, the page offers an "Open the app alongside" button and you arrange the split view yourself.</p>
+        </details>
+        <details>
+          <summary>Does it run on Windows?</summary>
+          <p>Not yet. macOS and Linux today.</p>
+        </details>
       </div>
     </section>
   </main>
@@ -123,14 +240,7 @@
     </div>
   </footer>
 
-  <script>
-    for (const button of document.querySelectorAll('.copy')) {
-      button.addEventListener('click', async () => {
-        await navigator.clipboard.writeText(button.nextElementSibling.textContent)
-        button.textContent = 'Copied'
-        setTimeout(() => { button.textContent = 'Copy' }, 1500)
-      })
-    }
-  </script>
+  <script type="module" src="main.mjs"></script>
+  <script type="module" src="try.mjs"></script>
 </body>
 </html>
