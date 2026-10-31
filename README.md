@@ -1,4 +1,8 @@
-<p align="center"><img src="brand/logo.svg" width="64" alt=""></p>
+<p align="center">
+
+![Review Walkthru logo](brand/logo.svg)
+
+</p>
 
 <h1 align="center">Review Walkthru</h1>
 
@@ -85,6 +89,12 @@ No. Claude commits its fixes in a worktree and pushes only after you say yes in 
 <summary><b>Where does my data go?</b></summary>
 
 Reviews stay on your machine, in `~/.claude/plugins/data/review-walkthru-review-walkthru/`: the walkthrough and review of each round, the test accounts and the PR worktree under `runs/`, and what Claude learned about starting each project under `projects/`. The Chrome extension collects nothing. The review you send goes to Claude Code, like any other prompt. Details on the [privacy page](https://review-walkthru.henry.pro/privacy.html).
+</details>
+
+<details>
+<summary><b>What does the plugin run on my machine?</b></summary>
+
+Node.js scripts from the plugin folder: a relay on `127.0.0.1`, behind a random token, that serves the review page and receives your review. The GitHub CLI (`gh`) to read the pull request. `git` to check the PR out in a worktree and, after your yes, push the fixes. The commands you agree on to start your app and create test data. Chrome, to open the review page. Nothing else: no telemetry, no other network call.
 </details>
 
 <details>

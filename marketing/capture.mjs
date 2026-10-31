@@ -46,7 +46,8 @@ const jobs = [
   { url: compose('tile.html'), out: join(store, 'tile-440x280.png'), width: 440, height: 280 },
   { url: compose('marquee.html'), out: join(store, 'marquee-1400x560.png'), width: 1400, height: 560 },
   { url: compose('social.html'), out: join(root, 'site/og.png'), width: 1280, height: 640 },
-  { url: compose('social.html'), out: join(store, 'github-social-preview.png'), width: 1280, height: 640 }
+  { url: compose('social.html'), out: join(store, 'github-social-preview.png'), width: 1280, height: 640 },
+  { url: compose('icon.html'), out: join(root, '.claude-plugin/icon.png'), width: 1024, height: 1024 }
 ]
 const only = process.argv[2]
 try {

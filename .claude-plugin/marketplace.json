@@ -1,6 +1,7 @@
 {
   "name": "review-walkthru",
   "owner": { "name": "Thibault Henry" },
+  "metadata": { "description": "Review Walkthru: turn a pull request into a real acceptance test, in your running app." },
   "plugins": [
     {
       "name": "review-walkthru",
