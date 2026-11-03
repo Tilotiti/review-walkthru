@@ -16,7 +16,7 @@ A Claude Code plugin that turns a pull request into a real acceptance test: ever
 <p>
   <a href="https://review-walkthru.henry.pro"><b>Website</b></a> ·
   <a href="https://review-walkthru.henry.pro/#try"><b>Try the live demo</b></a> ·
-  <a href="https://chromewebstore.google.com/detail/kjigknfmabifbopeelbckkilheemoedh">Chrome extension (pending review)</a>
+  <a href="https://chromewebstore.google.com/detail/kjigknfmabifbopeelbckkilheemoedh">Chrome extension</a>
 </p>
 
 </div>
@@ -52,7 +52,7 @@ A 7-screen feature in a production SaaS:
 /plugin install review-walkthru@review-walkthru
 ```
 
-**2. Add the [Chrome extension](https://chromewebstore.google.com/detail/kjigknfmabifbopeelbckkilheemoedh)** (pending Google review). The review runs in it: it opens your app next to the review page in split view, lets you comment right on the app, shows the app's console errors in each step, and fills forms with the data Claude picked. It needs Chrome 155 or later. `/review-walkthru` checks that Chrome has it and opens its Store page if not.
+**2. Add the [Chrome extension](https://chromewebstore.google.com/detail/kjigknfmabifbopeelbckkilheemoedh)**. The review runs in it: it opens your app next to the review page in split view, lets you comment right on the app, shows the app's console errors in each step, and fills forms with the data Claude picked. It needs Chrome 155 or later. `/review-walkthru` checks that Chrome has it and opens its Store page if not.
 
 **3. Review a pull request:**
 
